@@ -1,0 +1,76 @@
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Gastos del viaje</h1>
+    <p class="page-subtitle">Registra y divide los gastos entre los participantes.</p>
+  </div>
+  <div class="head-actions">
+    <div class="group-select">
+      <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+        <path d="m3 20 7-14 4 8 3-5 4 11H3Z" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <select
+        aria-label="Viaje"
+        [value]="selectedTripId()"
+        (change)="selectedTripId.set($any($event.target).value)"
+      >
+        <option *ngFor="let t of trips()" [value]="t.id">{{ t.name }} ({{ groupName(t.groupId) }})</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" type="button">+ Registrar gasto</button>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 top-row">
+  <div class="card total-card">
+    <div class="total-label">Total gastado en este viaje</div>
+    <div class="total-value">{{ formatMoney(totalSpent()) }}</div>
+  </div>
+  <div class="card">
+    <h3 class="mini-title">Balance por persona</h3>
+    <div class="balance-row" *ngFor="let b of balancePerPerson()">
+      <div class="avatar avatar-sm" [style.background]="b.user?.avatarColor">{{ b.user?.initials }}</div>
+      <div class="balance-name">{{ b.user?.displayName }}</div>
+      <div class="balance-amount" [class.positivo]="b.balance >= 0" [class.negativo]="b.balance < 0">
+        {{ b.balance >= 0 ? '+' : '' }}{{ formatMoney(b.balance) }}
+      </div>
+    </div>
+    @if (balancePerPerson().length === 0) {
+      <div class="empty-state">No hay participantes en este viaje</div>
+    }
+  </div>
+</div>
+
+<div class="card">
+  <h3 class="mini-title" id="historial-gastos-title">Historial de gastos</h3>
+  <div class="table-scroll" role="region" aria-labelledby="historial-gastos-title" tabindex="0">
+    <table class="tabla-gastos" aria-labelledby="historial-gastos-title">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Concepto</th>
+          <th>Categoría</th>
+          <th>Pagado por</th>
+          <th>Fecha</th>
+          <th>Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let g of expenses()">
+          <td>
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+              <path [attr.d]="expenseCategoryIcon(g.category)" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </td>
+          <td>{{ g.concept }}</td>
+          <td><span class="badge" [ngClass]="expenseCategoryBadge(g.category)">{{ expenseCategoryLabel(g.category) }}</span></td>
+          <td>{{ mockData.getUser(g.paidById)?.displayName }}</td>
+          <td>{{ g.date }}</td>
+          <td class="monto">{{ formatMoney(g.amount) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  @if (expenses().length === 0) {
+    <div class="empty-state">No hay gastos registrados para este viaje todavía.</div>
+  }
+</div>

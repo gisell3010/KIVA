@@ -1,0 +1,78 @@
+<div class="notifications-page">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Notificaciones</h1>
+      <p class="page-subtitle">Mantente al día con lo que pasa en tus viajes</p>
+    </div>
+    <div class="page-actions">
+      @if (unreadCount() > 0) {
+        <button class="btn btn-primary" (click)="markAllAsRead()">
+          <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M20 6 9 17l-5-5"/>
+          </svg>
+          Marcar todas como leídas
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (unreadCount() > 0) {
+    <div class="unread-banner">
+      <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.7 21a2 2 0 0 1-3.4 0"/>
+      </svg>
+      <span>{{ unreadCount() }} notificación{{ unreadCount() !== 1 ? 'es' : '' }} sin leer</span>
+    </div>
+  }
+
+  <div class="notifications-list" role="list">
+    @for (notification of filteredNotifications(); track notification.id) {
+      <article class="notification-card" [class.unread]="!notification.readAt" role="listitem">
+        <div class="notification-icon" [ngClass]="typeIconClass(notification.type)">
+          <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+            <path [attr.d]="typeIconPath(notification.type)"/>
+          </svg>
+        </div>
+        <div class="notification-content">
+          <div class="notification-header">
+            <h3 class="notification-title">{{ notification.title }}</h3>
+            <span class="notification-time">{{ formatRelativeTime(notification.createdAt) }}</span>
+          </div>
+          <p class="notification-message">{{ notification.message }}</p>
+          <div class="notification-meta">
+            <span class="notification-type">{{ typeLabel(notification.type) }}</span>
+            @if (notification.actionUrl) {
+              <a [routerLink]="notification.actionUrl" class="notification-action">Ver detalles →</a>
+            }
+          </div>
+        </div>
+        <div class="notification-actions">
+          @if (!notification.readAt) {
+            <button class="icon-btn" (click)="markAsRead(notification.id)" aria-label="Marcar como leída" type="button">
+              <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5"/>
+              </svg>
+            </button>
+          }
+          <button class="icon-btn" (click)="deleteNotification(notification.id)" aria-label="Eliminar notificación" type="button">
+            <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </button>
+        </div>
+      </article>
+    }
+
+    @if (filteredNotifications().length === 0) {
+      <div class="empty-state" role="listitem">
+        <svg class="ui-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.7 21a2 2 0 0 1-3.4 0"/>
+        </svg>
+        <h3>No hay notificaciones</h3>
+        <p>Cuando recibas notificaciones, aparecerán aquí</p>
+      </div>
+    }
+  </div>
+</div>

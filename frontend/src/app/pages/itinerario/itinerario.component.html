@@ -1,0 +1,66 @@
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Itinerario</h1>
+    <p class="page-subtitle">Plan día a día de cada viaje.</p>
+  </div>
+  <div class="group-select">
+    <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+      <path d="m3 20 7-14 4 8 3-5 4 11H3Z" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <select
+      aria-label="Viaje"
+      [value]="selectedTripId()"
+      (change)="selectedTripId.set($any($event.target).value)"
+    >
+      <option *ngFor="let t of trips()" [value]="t.id">{{ t.name }} ({{ groupName(t.groupId) }})</option>
+    </select>
+  </div>
+</div>
+
+<div class="timeline" *ngIf="itineraryDays().length; else vacio">
+  <div class="dia-block" *ngFor="let day of itineraryDays()">
+    <div class="dia-header">
+      <div class="dia-numero">Día {{ day.dayNumber }}</div>
+      <div class="dia-fecha">{{ day.date }}</div>
+    </div>
+
+    <div class="actividad-item" *ngFor="let a of activitiesByDay(day.id)">
+      <div class="actividad-hora">{{ a.time }}</div>
+      <div class="actividad-dot">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <path [attr.d]="activityTypeIcon(a.type)" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="card actividad-card">
+        <div class="actividad-top">
+          <h4>{{ a.title }}</h4>
+          <span class="badge" [ngClass]="activityTypeBadge(a.type)">{{ activityTypeLabel(a.type) }}</span>
+        </div>
+        <p>{{ a.description }}</p>
+        <div class="actividad-costo">{{ formatMoney(a.cost) }}</div>
+      </div>
+    </div>
+
+    @if (activitiesByDay(day.id).length === 0) {
+      <div class="actividad-item empty-day">
+        <div class="actividad-hora"></div>
+        <div class="actividad-dot"></div>
+        <div class="card actividad-card" style="background: var(--bg-panel-2);">
+          <p style="text-align: center; color: var(--text-muted);">Sin actividades programadas</p>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<ng-template #vacio>
+  <div class="card empty-state">
+    <svg class="ui-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="margin: 0 auto 16px; opacity: 0.4;">
+      <path d="M8 2v4M16 2v4M3 10h18"/>
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
+    </svg>
+    <h3>No hay itinerario para este viaje</h3>
+    <p>Selecciona otro viaje o crea actividades para este</p>
+  </div>
+</ng-template>

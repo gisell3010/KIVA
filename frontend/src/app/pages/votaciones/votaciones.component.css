@@ -1,0 +1,40 @@
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.votacion-card { display: flex; flex-direction: column; gap: 8px; }
+
+.votacion-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.votacion-desc { font-size: 0.83rem; color: var(--text-secondary); margin: 0 0 10px; }
+
+.opcion-row { margin-bottom: 12px; }
+
+.opcion-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+.opcion-porcentaje { color: var(--text-muted); }
+
+.btn-vote {
+  margin-top: 6px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+}
+
+.votacion-footer {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-soft);
+  padding-top: 10px;
+  margin-top: 4px;
+}

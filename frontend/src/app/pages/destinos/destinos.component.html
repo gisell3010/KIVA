@@ -1,0 +1,56 @@
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Destinos propuestos</h1>
+    <p class="page-subtitle">Compara y vota por los destinos de cada viaje.</p>
+  </div>
+  <select
+    aria-label="Filtrar destinos por viaje"
+    [value]="filterTrip()"
+    (change)="filterTrip.set($any($event.target).value)"
+    class="filter-select"
+  >
+    <option value="all">Todos los viajes</option>
+    @for (t of trips(); track t.id) {
+      <option [value]="t.id">{{ t.name }} ({{ groupName(t.groupId) }})</option>
+    }
+  </select>
+</div>
+
+<div class="grid grid-cols-3">
+  <div class="card destino-card" *ngFor="let d of filteredDestinations()">
+    <div class="destino-top">
+      <svg class="ui-icon destino-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+        <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="badge badge-gray">{{ tripName(d.tripId) }}</span>
+    </div>
+    <h3>{{ d.name }}</h3>
+    <div class="destino-pais">{{ d.country }}</div>
+    <p class="destino-desc">{{ d.description }}</p>
+    <div class="destino-costo">Costo estimado: <strong>{{ formatMoney(d.estimatedCost) }}</strong></div>
+
+    <div class="votos-row">
+      <div class="progress-track">
+        <div class="progress-fill" [style.width.%]="(d.votes / maxVotes()) * 100"></div>
+      </div>
+      <span class="votos-count">{{ d.votes }} votos</span>
+    </div>
+
+    <button class="btn btn-outline btn-full" (click)="vote(d.id)" [attr.aria-label]="'Votar por ' + d.name">
+      <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+        <path d="M7 10v11H3V10h4Zm0 0 5-7a3 3 0 0 1 2 3l-1 4h6a2 2 0 0 1 2 2l-2 7a2 2 0 0 1-2 2H7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Votar por este destino
+    </button>
+  </div>
+</div>
+
+@if (filteredDestinations().length === 0) {
+  <div class="card empty-state">
+    <svg class="ui-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="margin: 0 auto 16px; opacity: 0.4;">
+      <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/>
+    </svg>
+    <h3>No hay destinos propuestos</h3>
+    <p>Los destinos aparecerán aquí cuando se propongan en los viajes</p>
+  </div>
+}

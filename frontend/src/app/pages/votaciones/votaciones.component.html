@@ -1,0 +1,42 @@
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Votaciones</h1>
+    <p class="page-subtitle">Decidan juntos los detalles del viaje.</p>
+  </div>
+  <button class="btn btn-primary" type="button">+ Nueva votación</button>
+</div>
+
+<div class="grid grid-cols-2">
+  <div class="card votacion-card" *ngFor="let v of polls()">
+    <div class="votacion-top">
+      <span class="badge badge-gray">{{ tripName(v.tripId) }}</span>
+      <span class="badge" [ngClass]="statusBadge(v.status)">{{ statusLabel(v.status) }}</span>
+    </div>
+    <h3>{{ v.title }}</h3>
+    <p class="votacion-desc">{{ v.description }}</p>
+
+    <div class="opcion-row" *ngFor="let o of getPollOptions(v.id)">
+      <div class="opcion-info">
+        <span>{{ o.text }}</span>
+        <span class="opcion-porcentaje">{{ ((o.votes / totalVotes(v.id)) * 100).toFixed(0) }}%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" [style.width.%]="(o.votes / totalVotes(v.id)) * 100"></div>
+      </div>
+      <button class="btn btn-ghost btn-vote" *ngIf="v.status === 'OPEN'" (click)="vote(v.id, o.id)" [attr.aria-label]="'Votar por ' + o.text + ' en ' + v.title">Votar</button>
+    </div>
+
+    <div class="votacion-footer">Cierra el {{ formatDate(v.closesAt) }}</div>
+  </div>
+</div>
+
+@if (polls().length === 0) {
+  <div class="card empty-state">
+    <svg class="ui-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="margin: 0 auto 16px; opacity: 0.4;">
+      <rect x="3" y="4" width="18" height="16" rx="2"/>
+      <path d="m7.5 12 2.5 2.5L15.5 9"/>
+    </svg>
+    <h3>No hay votaciones</h3>
+    <p>Las votaciones aparecerán aquí cuando se creen en los viajes</p>
+  </div>
+}

@@ -1,0 +1,76 @@
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Reservas</h1>
+    <p class="page-subtitle">Vuelos, hoteles y actividades reservadas (simulación — sin pasarela de pago real).</p>
+  </div>
+  <button class="btn btn-primary" type="button">+ Simular reserva</button>
+</div>
+
+<div class="filters-bar">
+  <div class="filter-group">
+    <label for="tripFilter" class="sr-only">Filtrar por viaje</label>
+    <select
+      id="tripFilter"
+      [(ngModel)]="selectedTripId"
+      class="filter-select"
+      aria-label="Filtrar por viaje"
+    >
+      <option value="all">Todos los viajes</option>
+      @for (t of trips(); track t.id) {
+        <option [value]="t.id">{{ t.name }} ({{ groupName(t.groupId) }})</option>
+      }
+    </select>
+  </div>
+
+  <div class="filter-group tipo-filtros" role="group" aria-label="Filtrar por tipo">
+    @for (t of filterTypes; track t) {
+      <button
+        class="filtro-chip"
+        [class.activo]="filterType() === t"
+        [attr.aria-pressed]="filterType() === t"
+        (click)="filterType.set(t)"
+        type="button"
+      >
+        {{ t === 'all' ? 'Todos' : typeLabel(t) }}
+      </button>
+    }
+  </div>
+</div>
+
+<div class="grid grid-cols-3">
+  <div class="card reserva-card" *ngFor="let r of typeFilteredReservations()">
+    <div class="reserva-top">
+      <svg class="ui-icon reserva-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+        <rect x="5" y="4" width="14" height="17" rx="2"/>
+        <path d="M9 4V2m6 2V2M9 10h6m-6 5 2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="badge" [ngClass]="statusBadge(r.status)">{{ statusLabel(r.status) }}</span>
+    </div>
+    <h3>{{ r.provider }}</h3>
+    <div class="reserva-tipo">{{ typeLabel(r.type) }} · {{ tripName(r.tripId) }}</div>
+    <p class="reserva-detalle">{{ r.detail }}</p>
+    <div class="reserva-footer">
+      <div class="reserva-fecha">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18" stroke-linecap="round"/>
+        </svg>
+        {{ r.date }}
+      </div>
+      <div class="reserva-costo">{{ formatMoney(r.cost) }}</div>
+    </div>
+    <button *ngIf="r.status === 'PENDING'" class="btn btn-outline btn-full" (click)="simulateConfirmation(r.id)">
+      Simular confirmación
+    </button>
+  </div>
+</div>
+
+@if (typeFilteredReservations().length === 0) {
+  <div class="card empty-state" style="grid-column: 1 / -1;">
+    <svg class="ui-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" style="margin: 0 auto 16px; opacity: 0.4;">
+      <rect x="5" y="4" width="14" height="17" rx="2"/>
+      <path d="M9 4V2m6 2V2M9 10h6m-6 5 2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h3>No hay reservas</h3>
+    <p>{{ selectedTripId() !== 'all' ? 'Este viaje no tiene reservas aún' : 'No se encontraron reservas con los filtros actuales' }}</p>
+  </div>
+}

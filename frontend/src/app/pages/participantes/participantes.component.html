@@ -1,0 +1,27 @@
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Participantes</h1>
+    <p class="page-subtitle">Personas que forman parte de tus grupos y viajes.</p>
+  </div>
+  <button class="btn btn-primary" type="button">+ Invitar participante</button>
+</div>
+
+<div class="grid grid-cols-3">
+  <div class="card user-card" *ngFor="let u of usersWithGroups()">
+    <div class="user-card-top">
+      <div class="avatar avatar-lg" [style.background]="u.avatarColor">{{ u.initials }}</div>
+      <span class="badge" [ngClass]="roleBadge(u.roles[0] || u.role)">{{ roleLabel(u.roles[0] || u.role) }}</span>
+    </div>
+    <h3 class="user-nombre">{{ u.displayName }}</h3>
+    <p class="user-email">{{ u.email }}</p>
+    <div class="user-grupos">
+      <span class="chip" *ngFor="let g of u.groups">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <path d="m3 20 7-14 4 8 3-5 4 11H3Z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>{{ g }}</span>
+      </span>
+      <span class="chip chip-empty" *ngIf="u.groups.length === 0">Sin grupos aún</span>
+    </div>
+  </div>
+</div>

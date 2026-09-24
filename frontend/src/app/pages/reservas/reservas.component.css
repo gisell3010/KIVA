@@ -1,0 +1,48 @@
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  gap: 16px;
+}
+
+.filtros {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filtro-chip {
+  border: 1px solid var(--border-soft);
+  background: var(--bg-panel-2);
+  color: var(--text-secondary);
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.filtro-chip.activo {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  color: #fff;
+  border-color: transparent;
+}
+
+.reserva-card { display: flex; flex-direction: column; gap: 8px; }
+
+.reserva-top { display: flex; justify-content: space-between; align-items: center; }
+.reserva-emoji { font-size: 1.8rem; }
+
+.reserva-tipo { font-size: 0.78rem; color: var(--text-muted); margin-top: -6px; }
+.reserva-detalle { font-size: 0.83rem; color: var(--text-secondary); margin: 4px 0; }
+
+.reserva-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+.reserva-costo { font-weight: 700; color: var(--accent-cyan); }
+.btn-full { width: 100%; justify-content: center; margin-top: 4px; }

@@ -1,0 +1,66 @@
+<div class="search-container" #container>
+  <div class="search-box">
+    <svg class="ui-icon search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/>
+      <path d="m21 21-4.3-4.3"/>
+    </svg>
+    <input
+      type="text"
+      placeholder="Buscar grupos, destinos, participantes, viajes..."
+      aria-label="Buscar"
+      [value]="query()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (keydown)="onKeydown($event)"
+      autocomplete="off"
+      #searchInput
+    />
+    @if (query()) {
+      <button class="clear-btn" (click)="clear()" aria-label="Limpiar búsqueda" type="button">
+        <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    }
+  </div>
+
+  @if (isOpen() && (results().length > 0 || query())) {
+    <div class="search-dropdown" role="listbox" aria-label="Resultados de búsqueda">
+      @if (results().length > 0) {
+        <div class="results-list">
+          @for (result of results(); track result.id) {
+            <a
+              [routerLink]="result.route"
+              class="result-item"
+              role="option"
+              (click)="selectResult()"
+            >
+              <span class="result-icon" [style.background]="result.iconBg">
+                <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                  <path [attr.d]="result.icon"/>
+                </svg>
+              </span>
+              <div class="result-content">
+                <div class="result-title">{{ result.title }}</div>
+                <div class="result-subtitle">{{ result.subtitle }}</div>
+              </div>
+              <span class="result-type">{{ result.typeLabel }}</span>
+            </a>
+          }
+        </div>
+      } @else if (query().length >= 2) {
+        <div class="no-results">
+          <svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="m21 21-4.3-4.3"/>
+          </svg>
+          <p>No se encontraron resultados para "{{ query() }}"</p>
+        </div>
+      } @else if (query().length > 0) {
+        <div class="search-hint">
+          <p>Escribe al menos 2 caracteres para buscar</p>
+        </div>
+      }
+    </div>
+  }
+</div>

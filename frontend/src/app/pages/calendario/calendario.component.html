@@ -1,0 +1,57 @@
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Calendario</h1>
+    <p class="page-subtitle">Todas las fechas importantes de tus viajes en un solo lugar.</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-calendario">
+  <div class="card calendario-card">
+    <div class="cal-header">
+      <button class="icon-btn" aria-label="Mes anterior" (click)="prevMonth()">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <path d="m14 6-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <h3 id="cal-mes-title" aria-live="polite">{{ monthNames[month()] }} {{ year() }}</h3>
+      <button class="icon-btn" aria-label="Mes siguiente" (click)="nextMonth()">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <path d="m10 6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="cal-scroll" role="region" aria-labelledby="cal-mes-title" tabindex="0">
+      <div class="cal-grid cal-dias-semana">
+        <div class="cal-dia-nombre" *ngFor="let d of weekDays">{{ d }}</div>
+      </div>
+
+      <div class="cal-grid">
+        <div class="cal-celda" [class.vacia]="c.numero === null" *ngFor="let c of cells()">
+          <ng-container *ngIf="c.numero !== null">
+            <div class="cal-numero">{{ c.numero }}</div>
+            <div class="cal-eventos">
+              <div class="cal-evento" [ngClass]="eventTypeColor(e.tipo)" *ngFor="let e of c.eventos" [attr.title]="e.titulo">{{ e.titulo }}</div>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="mini-title">Próximos eventos</h3>
+    <div class="evento-lista">
+      <div class="evento-item" *ngFor="let e of upcomingEvents()">
+        <div class="evento-dot" [ngClass]="eventTypeColor(e.type)"></div>
+        <div>
+          <div class="evento-titulo">{{ e.title }}</div>
+          <div class="evento-fecha">{{ e.date }} · {{ eventTypeLabel(e.type) }}</div>
+        </div>
+      </div>
+      @if (upcomingEvents().length === 0) {
+        <div class="empty-state">No hay eventos programados</div>
+      }
+    </div>
+  </div>
+</div>

@@ -1,0 +1,68 @@
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dia-block { margin-bottom: 26px; }
+
+.dia-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.dia-numero {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--accent-cyan);
+}
+
+.dia-fecha { font-size: 0.8rem; color: var(--text-muted); }
+
+.actividad-item {
+  display: grid;
+  grid-template-columns: 64px 36px 1fr;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.actividad-hora {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding-top: 14px;
+  text-align: right;
+}
+
+.actividad-dot {
+  width: 38px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.actividad-card { padding: 14px 16px; }
+
+.actividad-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.actividad-top h4 { font-size: 0.95rem; }
+
+.actividad-card p { font-size: 0.83rem; color: var(--text-secondary); margin: 0 0 8px; }
+.actividad-costo { font-size: 0.8rem; font-weight: 600; color: var(--accent-cyan); }
+
+.empty-state { text-align: center; color: var(--text-muted); padding: 40px; }

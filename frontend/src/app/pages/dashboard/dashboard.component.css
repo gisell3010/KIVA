@@ -1,0 +1,80 @@
+.kpi-row { margin-bottom: 22px; }
+
+.kpi {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.kpi-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.kpi-value { font-size: 1.3rem; font-weight: 700; }
+.kpi-label { font-size: 0.8rem; color: var(--text-secondary); }
+
+.main-row { align-items: start; }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.link-see-all {
+  font-size: 0.8rem;
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.grupo-list, .evento-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grupo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+.grupo-row:hover { background: rgba(255,255,255,0.03); }
+
+.grupo-emoji {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.grupo-info { flex: 1; min-width: 0; }
+.grupo-nombre { font-weight: 600; font-size: 0.9rem; }
+.grupo-destino { font-size: 0.78rem; color: var(--text-muted); }
+
+.evento-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bg-panel-2);
+}
+
+.evento-icon { font-size: 1.1rem; }
+.evento-titulo { font-weight: 600; font-size: 0.87rem; }
+.evento-fecha { font-size: 0.75rem; color: var(--text-muted); }

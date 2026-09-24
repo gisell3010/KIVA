@@ -1,0 +1,45 @@
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.user-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.avatar-lg { width: 52px; height: 52px; font-size: 1rem; }
+
+.user-nombre { font-size: 1rem; font-weight: 700; }
+.user-email { font-size: 0.8rem; color: var(--text-muted); margin: -6px 0 4px; }
+
+.user-grupos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-soft);
+  color: var(--text-secondary);
+  padding: 4px 9px;
+  border-radius: 999px;
+}
+.chip-empty { color: var(--text-muted); font-style: italic; }

@@ -1,0 +1,68 @@
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.head-actions { display: flex; gap: 10px; }
+
+.top-row { margin-bottom: 20px; align-items: start; }
+
+.total-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(59,130,246,0.14), rgba(34,211,238,0.06));
+}
+
+.total-label { font-size: 0.85rem; color: var(--text-secondary); }
+.total-value { font-size: 2rem; font-weight: 800; margin-top: 6px; }
+
+.mini-title { font-size: 0.95rem; margin-bottom: 14px; }
+
+.balance-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.balance-row:last-child { border-bottom: none; }
+
+.balance-name { flex: 1; font-size: 0.85rem; }
+.balance-amount { font-size: 0.85rem; font-weight: 700; }
+.positivo { color: #4ade80; }
+.negativo { color: #f87171; }
+
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabla-gastos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.tabla-gastos th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tabla-gastos td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tabla-gastos tr:last-child td { border-bottom: none; }
+.monto { font-weight: 700; text-align: right; }
