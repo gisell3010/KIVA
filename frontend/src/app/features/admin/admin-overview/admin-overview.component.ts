@@ -1,12 +1,13 @@
 import { Component, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { MockDataService } from '../../../data-access/mock/mock-data.service';
 import { User, TripStatus } from '../../../shared/models/domain.models';
 
 @Component({
   selector: 'app-admin-overview',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   template: `
     <div class="admin-page">
       <div class="page-head">
@@ -42,6 +43,15 @@ import { User, TripStatus } from '../../../shared/models/domain.models';
               </div>
               <div class="dist-track">
                 <div class="dist-fill" [style.width.%]="adminUsersPercentage()" style="background: var(--accent-purple)"></div>
+              </div>
+            </div>
+            <div class="dist-bar">
+              <div class="dist-label">
+                <span>Soporte</span>
+                <span class="dist-value">{{ supportUsers() }}</span>
+              </div>
+              <div class="dist-track">
+                <div class="dist-fill" [style.width.%]="supportUsersPercentage()" style="background: var(--accent-green)"></div>
               </div>
             </div>
             <div class="dist-bar">
@@ -411,13 +421,15 @@ export class AdminOverviewComponent {
   private mockData = inject(MockDataService);
 
   totalUsers = computed(() => this.mockData.users().length);
-  adminUsers = computed(() => this.mockData.users().filter(u => u.role === 'ADMIN').length);
-  regularUsers = computed(() => this.totalUsers() - this.adminUsers());
-  activeUsers = computed(() => this.mockData.users().filter(u => u.id !== '1').length);
-  suspendedUsers = computed(() => this.mockData.users().filter(u => u.id === '1').length);
+  adminUsers = computed(() => this.mockData.users().filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length);
+  supportUsers = computed(() => this.mockData.users().filter(u => u.role === 'SUPPORT').length);
+  regularUsers = computed(() => this.mockData.users().filter(u => u.role === 'USER').length);
+  activeUsers = computed(() => this.mockData.users().filter(u => u.id !== '9').length);
+  suspendedUsers = computed(() => this.mockData.users().filter(u => u.id === '9').length);
 
   regularUsersPercentage = computed(() => (this.regularUsers() / this.totalUsers()) * 100);
   adminUsersPercentage = computed(() => (this.adminUsers() / this.totalUsers()) * 100);
+  supportUsersPercentage = computed(() => (this.supportUsers() / this.totalUsers()) * 100);
   activeUsersPercentage = computed(() => (this.activeUsers() / this.totalUsers()) * 100);
   suspendedUsersPercentage = computed(() => (this.suspendedUsers() / this.totalUsers()) * 100);
 

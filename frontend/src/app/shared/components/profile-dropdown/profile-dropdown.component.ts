@@ -54,8 +54,18 @@ import { AuthUser } from '../../../shared/models/domain.models';
             Configuración
           </a>
 
-          @if (isAdmin()) {
+          @if (isSupport()) {
             <div class="dropdown-divider"></div>
+            <a routerLink="/soporte" class="dropdown-item support-item" role="menuitem" (click)="close()">
+              <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                <line x1="4" x2="4" y1="22" y2="15"/>
+              </svg>
+              Panel de soporte
+            </a>
+          }
+
+          @if (isAdmin()) {
             <a routerLink="/admin" class="dropdown-item admin-item" role="menuitem" (click)="close()">
               <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
                 <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"/>
@@ -68,6 +78,16 @@ import { AuthUser } from '../../../shared/models/domain.models';
                 <path d="M9 22V12h6v10"/>
               </svg>
               Cambiar a espacio de usuario
+            </a>
+          }
+
+          @if (isSuperAdmin()) {
+            <a routerLink="/super-admin" class="dropdown-item admin-item" role="menuitem" (click)="close()">
+              <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+              Super administración
             </a>
           }
 
@@ -200,6 +220,14 @@ import { AuthUser } from '../../../shared/models/domain.models';
       background: rgba(168, 85, 247, 0.1);
     }
 
+    .support-item {
+      color: var(--accent-green);
+    }
+
+    .support-item:hover {
+      background: rgba(34, 197, 94, 0.1);
+    }
+
     .danger {
       color: var(--accent-red);
     }
@@ -223,6 +251,8 @@ export class ProfileDropdownComponent {
   isOpen = signal(false);
   currentUser = this.authService.user;
   isAdmin = this.authService.isAdmin;
+  isSupport = this.authService.isSupport;
+  isSuperAdmin = this.authService.isSuperAdmin;
 
   toggle(): void {
     this.isOpen.update(v => !v);
@@ -251,7 +281,9 @@ export class ProfileDropdownComponent {
 
   roleBadgeClass(role?: string): string {
     switch (role) {
+      case 'SUPER_ADMIN': return 'badge-purple';
       case 'ADMIN': return 'badge-purple';
+      case 'SUPPORT': return 'badge-green';
       case 'USER': return 'badge-blue';
       default: return 'badge-gray';
     }
@@ -259,7 +291,9 @@ export class ProfileDropdownComponent {
 
   roleLabel(role?: string): string {
     switch (role) {
+      case 'SUPER_ADMIN': return 'Super Administrador';
       case 'ADMIN': return 'Administrador';
+      case 'SUPPORT': return 'Soporte';
       case 'USER': return 'Usuario';
       default: return 'Usuario';
     }

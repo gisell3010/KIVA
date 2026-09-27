@@ -1,9 +1,20 @@
 import { Injectable, signal, computed, effect } from '@angular/core';
-import { AuthUser, AuthState, UserRole, UUID } from '../../shared/models/domain.models';
+import { AuthUser, AuthState, GlobalRole, UUID, GLOBAL_ROLE_LABELS } from '../../shared/models/domain.models';
 
 const MOCK_USERS: AuthUser[] = [
   {
     id: '1' as UUID,
+    email: 'superadmin@kiva.app',
+    firstName: 'Super',
+    lastName: 'Admin',
+    displayName: 'Super Admin',
+    avatarColor: '#7c3aed',
+    initials: 'SA',
+    role: 'SUPER_ADMIN',
+    bio: 'Super administrador de la plataforma KIVA',
+  },
+  {
+    id: '2' as UUID,
     email: 'admin@kiva.app',
     firstName: 'Admin',
     lastName: 'User',
@@ -11,9 +22,21 @@ const MOCK_USERS: AuthUser[] = [
     avatarColor: '#a855f7',
     initials: 'AU',
     role: 'ADMIN',
+    bio: 'Administrador de la plataforma KIVA',
   },
   {
-    id: '2' as UUID,
+    id: '3' as UUID,
+    email: 'soporte@kiva.app',
+    firstName: 'Soporte',
+    lastName: 'KIVA',
+    displayName: 'Soporte KIVA',
+    avatarColor: '#22c55e',
+    initials: 'SK',
+    role: 'SUPPORT',
+    bio: 'Equipo de soporte al usuario',
+  },
+  {
+    id: '4' as UUID,
     email: 'camila@kiva.app',
     firstName: 'Camila',
     lastName: 'Rojas',
@@ -21,9 +44,10 @@ const MOCK_USERS: AuthUser[] = [
     avatarColor: '#3b82f6',
     initials: 'CR',
     role: 'USER',
+    bio: 'Amante de los viajes y la aventura',
   },
   {
-    id: '3' as UUID,
+    id: '5' as UUID,
     email: 'julian@kiva.app',
     firstName: 'Julián',
     lastName: 'Pérez',
@@ -31,10 +55,33 @@ const MOCK_USERS: AuthUser[] = [
     avatarColor: '#22c55e',
     initials: 'JP',
     role: 'USER',
+    bio: 'Fotógrafo de viajes',
+  },
+  {
+    id: '6' as UUID,
+    email: 'valentina@kiva.app',
+    firstName: 'Valentina',
+    lastName: 'Gómez',
+    displayName: 'Valentina Gómez',
+    avatarColor: '#a855f7',
+    initials: 'VG',
+    role: 'USER',
+    bio: 'Exploradora de destinos ocultos',
+  },
+  {
+    id: '7' as UUID,
+    email: 'andres@kiva.app',
+    firstName: 'Andrés',
+    lastName: 'Torres',
+    displayName: 'Andrés Torres',
+    avatarColor: '#f97316',
+    initials: 'AT',
+    role: 'USER',
+    bio: 'Mochoilero por el mundo',
   },
 ];
 
-const DEMO_USER_ID = '2';
+const DEMO_USER_ID = '5';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -48,8 +95,15 @@ export class AuthService {
   readonly user = computed(() => this._state().user);
   readonly isAuthenticated = computed(() => this._state().isAuthenticated);
   readonly isLoading = computed(() => this._state().isLoading);
-  readonly isAdmin = computed(() => this._state().user?.role === 'ADMIN');
   readonly currentUserId = computed(() => this._state().user?.id ?? null);
+
+  readonly isSuperAdmin = computed(() => this._state().user?.role === 'SUPER_ADMIN');
+  readonly isAdmin = computed(() => this._state().user?.role === 'ADMIN' || this._state().user?.role === 'SUPER_ADMIN');
+  readonly isSupport = computed(() => this._state().user?.role === 'SUPPORT' || this.isAdmin());
+  readonly isUser = computed(() => this._state().user?.role === 'USER');
+
+  readonly canAccessAdminPanel = computed(() => this.isAdmin());
+  readonly canSupport = computed(() => this.isSupport());
 
   constructor() {
     this.initialize();
@@ -95,5 +149,19 @@ export class AuthService {
 
   getAvailableDemoUsers(): AuthUser[] {
     return MOCK_USERS;
+  }
+
+  getRoleLabel(role: GlobalRole): string {
+    return GLOBAL_ROLE_LABELS[role] || role;
+  }
+
+  getRoleColor(role: GlobalRole): string {
+    const colors: Record<GlobalRole, string> = {
+      SUPER_ADMIN: '#7c3aed',
+      ADMIN: '#a855f7',
+      SUPPORT: '#22c55e',
+      USER: '#64748b',
+    };
+    return colors[role] || '#64748b';
   }
 }

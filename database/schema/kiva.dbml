@@ -1,0 +1,205 @@
+Table auth.users {
+  id integer [pk, increment]
+  full_name varchar(120) [not null]
+  username varchar(50) [not null, unique]
+  email varchar(150) [not null, unique]
+  password_hash varchar(255) [not null]
+  role varchar(20) [not null, default: 'USER']
+  status varchar(20) [not null, default: 'ACTIVE']
+  profile_image varchar(255)
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table auth.auth_sessions {
+  id integer [pk, increment]
+  user_id integer [not null]
+  refresh_token_hash varchar(64) [not null, unique]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  expires_at timestamptz [not null]
+  revoked_at timestamptz
+}
+
+Table app.travel_groups {
+  id integer [pk, increment]
+  name varchar(120) [not null]
+  description varchar(300)
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table app.group_members {
+  id integer [pk, increment]
+  group_id integer [not null]
+  user_id integer [not null]
+  role varchar(20) [not null, default: 'MEMBER']
+  joined_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (group_id, user_id) [unique, name: 'uq_group_members']
+  }
+}
+
+Table app.trips {
+  id integer [pk, increment]
+  group_id integer [not null]
+  name varchar(150) [not null]
+  description varchar(300)
+  start_date date
+  end_date date
+  status varchar(20) [not null, default: 'PLANNING']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table app.trip_members {
+  id integer [pk, increment]
+  trip_id integer [not null]
+  user_id integer [not null]
+  role varchar(20) [not null, default: 'MEMBER']
+  indexes {
+    (trip_id, user_id) [unique, name: 'uq_trip_members']
+  }
+}
+
+Table app.destinations {
+  id integer [pk, increment]
+  trip_id integer [not null]
+  proposed_by_user_id integer [not null]
+  country varchar(100) [not null]
+  place_name varchar(150) [not null]
+  description varchar(300)
+  is_selected boolean [not null, default: false]
+}
+
+Table app.destination_photos {
+  id integer [pk, increment]
+  destination_id integer [not null]
+  uploaded_by_user_id integer [not null]
+  file_path varchar(255) [not null, unique]
+  position integer [not null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (destination_id, position) [unique, name: 'uq_destination_photos_position']
+  }
+}
+
+Table app.activities {
+  id integer [pk, increment]
+  trip_id integer [not null]
+  title varchar(150) [not null]
+  description varchar(300)
+  location varchar(150)
+  activity_date date [not null]
+  start_time time
+  estimated_cost decimal(12,2)
+  status varchar(20) [not null, default: 'PROPOSED']
+}
+
+Table app.expense_categories {
+  id integer [pk, increment]
+  name varchar(80) [not null, unique]
+}
+
+Table app.expenses {
+  id integer [pk, increment]
+  trip_id integer [not null]
+  paid_by_user_id integer [not null]
+  category_id integer [not null]
+  title varchar(150) [not null]
+  amount decimal(12,2) [not null]
+  expense_date date [not null]
+}
+
+Table app.expense_splits {
+  id integer [pk, increment]
+  expense_id integer [not null]
+  user_id integer [not null]
+  amount decimal(12,2) [not null]
+  indexes {
+    (expense_id, user_id) [unique, name: 'uq_expense_splits']
+  }
+}
+
+Table app.polls {
+  id integer [pk, increment]
+  trip_id integer [not null]
+  question varchar(250) [not null]
+  status varchar(20) [not null, default: 'OPEN']
+  closes_at timestamp
+}
+
+Table app.poll_options {
+  id integer [pk, increment]
+  poll_id integer [not null]
+  option_number integer [not null]
+  option_text varchar(200) [not null]
+  indexes {
+    (poll_id, option_number) [unique, name: 'uq_poll_options_number']
+  }
+}
+
+Table app.votes {
+  id integer [pk, increment]
+  user_id integer [not null]
+  option_id integer [not null]
+  voted_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  indexes {
+    (option_id, user_id) [unique, name: 'uq_votes_option_user']
+  }
+}
+
+Table app.reservation_types {
+  id integer [pk, increment]
+  name varchar(80) [not null, unique]
+}
+
+Table app.reservations {
+  id integer [pk, increment]
+  trip_id integer [not null]
+  type_id integer [not null]
+  title varchar(150) [not null]
+  provider varchar(150)
+  reservation_date date
+  amount decimal(12,2)
+  status varchar(20) [not null, default: 'PENDING']
+}
+
+Table app.notifications {
+  id integer [pk, increment]
+  user_id integer [not null]
+  title varchar(150) [not null]
+  message varchar(300) [not null]
+  is_read boolean [not null, default: false]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table audit.audit_logs {
+  id integer [pk, increment]
+  user_id integer
+  action varchar(100) [not null]
+  entity varchar(80)
+  entity_id integer
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Ref fk_auth_sessions_user: auth.auth_sessions.user_id > auth.users.id [delete: cascade]
+Ref fk_group_members_group: app.group_members.group_id > app.travel_groups.id [delete: cascade]
+Ref fk_group_members_user: app.group_members.user_id > auth.users.id [delete: restrict]
+Ref fk_trips_group: app.trips.group_id > app.travel_groups.id [delete: restrict]
+Ref fk_trip_members_trip: app.trip_members.trip_id > app.trips.id [delete: cascade]
+Ref fk_trip_members_user: app.trip_members.user_id > auth.users.id [delete: restrict]
+Ref fk_destinations_trip: app.destinations.trip_id > app.trips.id [delete: cascade]
+Ref fk_destinations_user: app.destinations.proposed_by_user_id > auth.users.id [delete: restrict]
+Ref fk_destination_photos_destination: app.destination_photos.destination_id > app.destinations.id [delete: cascade]
+Ref fk_destination_photos_user: app.destination_photos.uploaded_by_user_id > auth.users.id [delete: restrict]
+Ref fk_activities_trip: app.activities.trip_id > app.trips.id [delete: cascade]
+Ref fk_expenses_trip: app.expenses.trip_id > app.trips.id [delete: restrict]
+Ref fk_expenses_user: app.expenses.paid_by_user_id > auth.users.id [delete: restrict]
+Ref fk_expenses_category: app.expenses.category_id > app.expense_categories.id [delete: restrict]
+Ref fk_expense_splits_expense: app.expense_splits.expense_id > app.expenses.id [delete: cascade]
+Ref fk_expense_splits_user: app.expense_splits.user_id > auth.users.id [delete: restrict]
+Ref fk_polls_trip: app.polls.trip_id > app.trips.id [delete: cascade]
+Ref fk_poll_options_poll: app.poll_options.poll_id > app.polls.id [delete: cascade]
+Ref fk_votes_user: app.votes.user_id > auth.users.id [delete: restrict]
+Ref fk_votes_option: app.votes.option_id > app.poll_options.id [delete: cascade]
+Ref fk_reservations_trip: app.reservations.trip_id > app.trips.id [delete: cascade]
+Ref fk_reservations_type: app.reservations.type_id > app.reservation_types.id [delete: restrict]
+Ref fk_notifications_user: app.notifications.user_id > auth.users.id [delete: cascade]
+Ref fk_audit_logs_user: audit.audit_logs.user_id > auth.users.id [delete: set null]

@@ -1,7 +1,7 @@
 -- ================================================================
 -- KIVA
 -- 00_create_schemas.sql
--- Creación de los esquemas principales de PostgreSQL
+-- Creación de los esquemas de cuentas, aplicación y auditoría
 -- ================================================================
 
 BEGIN;

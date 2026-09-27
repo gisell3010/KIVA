@@ -117,6 +117,19 @@ h1, h2, h3, h4 {
   margin-bottom: 24px;
 }
 
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.page-head .page-subtitle {
+  margin-bottom: 0;
+}
+
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border-soft);

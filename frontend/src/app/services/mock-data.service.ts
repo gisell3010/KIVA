@@ -7,12 +7,12 @@ import {
 export class MockDataService {
 
   usuarios = signal<Usuario[]>([
-    { id: 1, nombre: 'Camila Rojas', email: 'camila@viajes.com', avatarColor: '#3b82f6', iniciales: 'CR', rol: 'Administrador' },
-    { id: 2, nombre: 'Julián Pérez', email: 'julian@viajes.com', avatarColor: '#22c55e', iniciales: 'JP', rol: 'Organizador' },
-    { id: 3, nombre: 'Valentina Gómez', email: 'valentina@viajes.com', avatarColor: '#a855f7', iniciales: 'VG', rol: 'Participante' },
-    { id: 4, nombre: 'Andrés Torres', email: 'andres@viajes.com', avatarColor: '#f97316', iniciales: 'AT', rol: 'Participante' },
-    { id: 5, nombre: 'Laura Méndez', email: 'laura@viajes.com', avatarColor: '#ec4899', iniciales: 'LM', rol: 'Invitado' },
-    { id: 6, nombre: 'Sebastián Ruiz', email: 'sebastian@viajes.com', avatarColor: '#06b6d4', iniciales: 'SR', rol: 'Participante' },
+    { id: 1, nombre: 'Camila Rojas', email: 'camila@viajes.com', avatarColor: '#3b82f6', iniciales: 'CR', rol: 'ADMIN' },
+    { id: 2, nombre: 'Julián Pérez', email: 'julian@viajes.com', avatarColor: '#22c55e', iniciales: 'JP', rol: 'USER' },
+    { id: 3, nombre: 'Valentina Gómez', email: 'valentina@viajes.com', avatarColor: '#a855f7', iniciales: 'VG', rol: 'USER' },
+    { id: 4, nombre: 'Andrés Torres', email: 'andres@viajes.com', avatarColor: '#f97316', iniciales: 'AT', rol: 'USER' },
+    { id: 5, nombre: 'Laura Méndez', email: 'laura@viajes.com', avatarColor: '#ec4899', iniciales: 'LM', rol: 'SUPPORT' },
+    { id: 6, nombre: 'Sebastián Ruiz', email: 'sebastian@viajes.com', avatarColor: '#06b6d4', iniciales: 'SR', rol: 'USER' },
   ]);
 
   grupos = signal<Grupo[]>([

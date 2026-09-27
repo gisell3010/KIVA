@@ -83,6 +83,10 @@ import { User, UserRole } from '../../../shared/models/domain.models';
         <div class="card">
           <div class="card-header">
             <h3>Grupos y viajes</h3>
+            <div class="header-links">
+              <a routerLink="/admin/grupos" class="link-see-all">Grupos →</a>
+              <a routerLink="/admin/viajes" class="link-see-all">Viajes →</a>
+            </div>
           </div>
           <div class="stat-grid">
             <div class="stat-item">
@@ -152,7 +156,7 @@ import { User, UserRole } from '../../../shared/models/domain.models';
                   </div>
                 </div>
                 <span class="badge" [ngClass]="roleBadgeClass(user.role)">{{ roleLabel(user.role) }}</span>
-                <span class="status-badge" [class.active]="user.id !== '1'">{{ user.id === '1' ? 'Suspendido' : 'Activo' }}</span>
+                <span class="status-badge" [class.active]="user.id !== '9'">{{ user.id === '9' ? 'Suspendido' : 'Activo' }}</span>
                 <span class="text-muted">{{ formatRelativeTime(user.updatedAt) }}</span>
               </div>
             }
@@ -318,6 +322,11 @@ import { User, UserRole } from '../../../shared/models/domain.models';
       color: var(--accent-cyan);
       font-weight: 600;
     }
+
+    .header-links {
+      display: flex;
+      gap: 12px;
+    }
   `]
 })
 export class AdminDashboardComponent {
@@ -325,9 +334,9 @@ export class AdminDashboardComponent {
   private mockData = inject(MockDataService);
 
   totalUsers = computed(() => this.mockData.users().length);
-  activeUsers = computed(() => this.mockData.users().filter(u => u.id !== '1').length);
-  suspendedUsers = computed(() => this.mockData.users().filter(u => u.id === '1').length);
-  adminUsers = computed(() => this.mockData.users().filter(u => u.role === 'ADMIN').length);
+  activeUsers = computed(() => this.mockData.users().filter(u => u.id !== '9').length);
+  suspendedUsers = computed(() => this.mockData.users().filter(u => u.id === '9').length);
+  adminUsers = computed(() => this.mockData.users().filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length);
 
   totalGroups = computed(() => this.mockData.groups().length);
   totalTrips = computed(() => this.mockData.trips().length);
@@ -373,7 +382,9 @@ export class AdminDashboardComponent {
 
   roleBadgeClass(role: UserRole): string {
     switch (role) {
+      case 'SUPER_ADMIN': return 'badge-purple';
       case 'ADMIN': return 'badge-purple';
+      case 'SUPPORT': return 'badge-green';
       case 'USER': return 'badge-blue';
       default: return 'badge-gray';
     }
@@ -381,7 +392,9 @@ export class AdminDashboardComponent {
 
   roleLabel(role: UserRole): string {
     switch (role) {
+      case 'SUPER_ADMIN': return 'Super Administrador';
       case 'ADMIN': return 'Administrador';
+      case 'SUPPORT': return 'Soporte';
       case 'USER': return 'Usuario';
       default: return 'Usuario';
     }
