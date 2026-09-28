@@ -15,7 +15,7 @@ import { AdminUsersComponent } from './features/admin/admin-users/admin-users.co
 import { AdminOverviewComponent } from './features/admin/admin-overview/admin-overview.component';
 import { NotificationsPageComponent } from './features/notifications/notifications-page/notifications-page.component';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
-import { adminGuard } from './core/guards/role.guard';
+import { adminGuard, superAdminGuard, supportGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -27,6 +27,7 @@ export const routes: Routes = [
   { path: 'dashboard', component: DashboardComponent, canActivate: [authGuard] },
   { path: 'grupos', component: GruposComponent, canActivate: [authGuard] },
   { path: 'viajes', loadComponent: () => import('./features/trips/trips.component').then(m => m.TripsComponent), canActivate: [authGuard] },
+  { path: 'viajes/nuevo', loadComponent: () => import('./features/trips/trip-create/trip-create.component').then(m => m.TripCreateComponent), canActivate: [authGuard] },
   { path: 'participantes', component: ParticipantesComponent, canActivate: [authGuard] },
   { path: 'destinos', component: DestinosComponent, canActivate: [authGuard] },
   { path: 'itinerario', component: ItinerarioComponent, canActivate: [authGuard] },
@@ -38,10 +39,23 @@ export const routes: Routes = [
   { path: 'configuracion', component: SettingsComponent, canActivate: [authGuard] },
   { path: 'perfil', component: ProfileComponent, canActivate: [authGuard] },
 
-  // Admin routes
+  // Admin routes (ADMIN and SUPER_ADMIN)
   { path: 'admin', component: AdminDashboardComponent, canActivate: [authGuard, adminGuard] },
   { path: 'admin/usuarios', component: AdminUsersComponent, canActivate: [authGuard, adminGuard] },
   { path: 'admin/vision-general', component: AdminOverviewComponent, canActivate: [authGuard, adminGuard] },
+  { path: 'admin/grupos', loadComponent: () => import('./features/admin/admin-groups/admin-groups.component').then(m => m.AdminGroupsComponent), canActivate: [authGuard, adminGuard] },
+  { path: 'admin/viajes', loadComponent: () => import('./features/admin/admin-trips/admin-trips.component').then(m => m.AdminTripsComponent), canActivate: [authGuard, adminGuard] },
+
+  // Support routes (SUPPORT and above)
+  { path: 'soporte', loadComponent: () => import('./features/support/support-dashboard/support-dashboard.component').then(m => m.SupportDashboardComponent), canActivate: [authGuard, supportGuard] },
+  { path: 'soporte/tickets', loadComponent: () => import('./features/support/support-tickets/support-tickets.component').then(m => m.SupportTicketsComponent), canActivate: [authGuard, supportGuard] },
+  { path: 'soporte/usuarios', loadComponent: () => import('./features/support/support-users/support-users.component').then(m => m.SupportUsersComponent), canActivate: [authGuard, supportGuard] },
+
+  // Super Admin routes (SUPER_ADMIN only)
+  { path: 'super-admin', loadComponent: () => import('./features/super-admin/super-admin-dashboard/super-admin-dashboard.component').then(m => m.SuperAdminDashboardComponent), canActivate: [authGuard, superAdminGuard] },
+  { path: 'super-admin/configuracion', loadComponent: () => import('./features/super-admin/super-admin-config/super-admin-config.component').then(m => m.SuperAdminConfigComponent), canActivate: [authGuard, superAdminGuard] },
+  { path: 'super-admin/auditoria', loadComponent: () => import('./features/super-admin/super-admin-audit/super-admin-audit.component').then(m => m.SuperAdminAuditComponent), canActivate: [authGuard, superAdminGuard] },
+  { path: 'super-admin/salud', loadComponent: () => import('./features/super-admin/super-admin-health/super-admin-health.component').then(m => m.SuperAdminHealthComponent), canActivate: [authGuard, superAdminGuard] },
 
   { path: '**', redirectTo: 'dashboard' },
 ];

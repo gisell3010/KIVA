@@ -36,7 +36,9 @@ export class ParticipantesComponent {
       case 'OWNER': return 'badge-purple';
       case 'ORGANIZER': return 'badge-blue';
       case 'MEMBER': return 'badge-green';
+      case 'SUPER_ADMIN': return 'badge-purple';
       case 'ADMIN': return 'badge-purple';
+      case 'SUPPORT': return 'badge-green';
       case 'USER': return 'badge-blue';
       default: return 'badge-gray';
     }
@@ -47,7 +49,9 @@ export class ParticipantesComponent {
       case 'OWNER': return 'Propietario';
       case 'ORGANIZER': return 'Organizador';
       case 'MEMBER': return 'Miembro';
+      case 'SUPER_ADMIN': return 'Super Administrador';
       case 'ADMIN': return 'Administrador';
+      case 'SUPPORT': return 'Soporte';
       case 'USER': return 'Usuario';
       default: return role;
     }

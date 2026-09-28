@@ -1,27 +1,59 @@
-# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# Frontend
+node_modules/
+/frontend/dist/
+/frontend/tmp/
+/frontend/out-tsc/
+/frontend/bazel-out/
+/frontend/.angular/
+/frontend/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.sass-cache/
+testem.log
+/connect.lock
+/libpeerconnection.log
+/typings/
 
-# Compiled output
-/frontend/dist
-/frontend/tmp
-/frontend/out-tsc
-/frontend/bazel-out
-/backend/__pycache__
-/backend/.pytest_cache
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+/backend/build/
+/backend/dist/
+*.egg-info/
 
-# Node
-/frontend/node_modules
-npm-debug.log
-yarn-error.log
-
-# Environment files
+# Configuración privada
 .env
 .env.*
 !.env.example
-/frontend/.env
-/backend/.env
+!.env.test.example
+*.pem
+*.key
+/secrets/
 
-# IDEs and editors
+# Imágenes cargadas
+/backend/uploads/*
+!/backend/uploads/profiles/
+!/backend/uploads/destinations/
+/backend/uploads/profiles/*
+!/backend/uploads/profiles/.gitkeep
+/backend/uploads/destinations/*
+!/backend/uploads/destinations/.gitkeep
+
+# Editores
 .idea/
+.vscode/
+.history/
 .project
 .classpath
 .c9/
@@ -29,39 +61,18 @@ yarn-error.log
 .settings/
 *.sublime-workspace
 
-# Visual Studio Code
-.vscode/
-.history/*
-
-# Miscellaneous
-/frontend/.angular
-.sass-cache/
-/connect.lock
-/frontend/coverage
-/libpeerconnection.log
-testem.log
-/typings
-
-# Python virtual environments
-/backend/.venv
-/backend/venv
-
-# Files uploaded by users
-/backend/uploads/*
-!/backend/uploads/.gitkeep
-!/backend/uploads/profiles/
-/backend/uploads/profiles/*
-!/backend/uploads/profiles/.gitkeep
-
-# System files
+# Sistema, registros y respaldos
 .DS_Store
 Thumbs.db
-
-# Logs and backups
+Desktop.ini
 *.log
 *.dump
 *.backup
 *.sql.gz
+/backups/
 
-# Docker local overrides
-docker-compose.override.yml
+# Ajustes locales de Docker
+/docker-compose.override.yml
+/docker-compose.override.yaml
+/compose.override.yml
+/compose.override.yaml

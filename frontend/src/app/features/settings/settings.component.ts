@@ -577,7 +577,9 @@ export class SettingsComponent {
 
   roleBadgeClass(role?: string): string {
     switch (role) {
+      case 'SUPER_ADMIN': return 'badge-purple';
       case 'ADMIN': return 'badge-purple';
+      case 'SUPPORT': return 'badge-green';
       case 'USER': return 'badge-blue';
       default: return 'badge-gray';
     }
@@ -585,7 +587,9 @@ export class SettingsComponent {
 
   roleLabel(role?: string): string {
     switch (role) {
+      case 'SUPER_ADMIN': return 'Super Administrador';
       case 'ADMIN': return 'Administrador';
+      case 'SUPPORT': return 'Soporte';
       case 'USER': return 'Usuario';
       default: return 'Usuario';
     }

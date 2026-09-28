@@ -6,17 +6,14 @@
 
 BEGIN;
 
-
 -- ================================================================
 -- SCHEMA: AUTH
 -- ================================================================
-
 
 -- ----------------------------------------------------------------
 -- USERS
 -- Cuentas de usuario de la plataforma.
 -- ----------------------------------------------------------------
-
 CREATE TABLE auth.users (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     full_name VARCHAR(120) NOT NULL,
@@ -33,17 +30,31 @@ CREATE TABLE auth.users (
         CHECK (status IN ('ACTIVE', 'SUSPENDED'))
 );
 
+-- ----------------------------------------------------------------
+-- AUTH SESSIONS
+-- Sesiones de autenticación de los usuarios.
+-- ----------------------------------------------------------------
+CREATE TABLE auth.auth_sessions (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    refresh_token_hash VARCHAR(64) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    CONSTRAINT fk_auth_sessions_user
+        FOREIGN KEY (user_id)
+        REFERENCES auth.users(id)
+        ON DELETE CASCADE
+);
 
 -- ================================================================
 -- SCHEMA: APP
 -- ================================================================
 
-
 -- ----------------------------------------------------------------
 -- TRAVEL GROUPS
 -- Grupos de usuarios que pueden organizar uno o varios viajes.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.travel_groups (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name VARCHAR(120) NOT NULL,
@@ -51,12 +62,10 @@ CREATE TABLE app.travel_groups (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-
 -- ----------------------------------------------------------------
 -- GROUP MEMBERS
 -- Relaciona usuarios con grupos.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.group_members (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     group_id INTEGER NOT NULL,
@@ -77,29 +86,19 @@ CREATE TABLE app.group_members (
         ON DELETE RESTRICT
 );
 
-
 -- ----------------------------------------------------------------
 -- TRIPS
 -- Viajes organizados por un grupo.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.trips (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-
     group_id INTEGER NOT NULL,
-
     name VARCHAR(150) NOT NULL,
-
     description VARCHAR(300),
-
     start_date DATE,
-
     end_date DATE,
-
     status VARCHAR(20) NOT NULL DEFAULT 'PLANNING',
-
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
     CONSTRAINT chk_trips_status
         CHECK (
             status IN (
@@ -109,7 +108,6 @@ CREATE TABLE app.trips (
                 'CANCELLED'
             )
         ),
-
     CONSTRAINT chk_trips_dates
         CHECK (
             end_date IS NULL
@@ -118,83 +116,86 @@ CREATE TABLE app.trips (
                 AND end_date >= start_date
             )
         ),
-
     CONSTRAINT fk_trips_group
         FOREIGN KEY (group_id)
         REFERENCES app.travel_groups(id)
         ON DELETE RESTRICT
 );
 
-
 -- ----------------------------------------------------------------
 -- TRIP MEMBERS
 -- Usuarios que participan específicamente en un viaje.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.trip_members (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-
     trip_id INTEGER NOT NULL,
-
     user_id INTEGER NOT NULL,
-
     role VARCHAR(20) NOT NULL DEFAULT 'MEMBER',
-
     CONSTRAINT uq_trip_members
         UNIQUE (trip_id, user_id),
-
     CONSTRAINT chk_trip_members_role
         CHECK (role IN ('OWNER', 'ORGANIZER', 'MEMBER')),
-
     CONSTRAINT fk_trip_members_trip
         FOREIGN KEY (trip_id)
         REFERENCES app.trips(id)
         ON DELETE CASCADE,
-
     CONSTRAINT fk_trip_members_user
         FOREIGN KEY (user_id)
         REFERENCES auth.users(id)
         ON DELETE RESTRICT
 );
 
-
 -- ----------------------------------------------------------------
 -- DESTINATIONS
 -- Destinos propuestos o seleccionados para un viaje.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.destinations (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-
     trip_id INTEGER NOT NULL,
-
     proposed_by_user_id INTEGER NOT NULL,
-
     country VARCHAR(100) NOT NULL,
-
     place_name VARCHAR(150) NOT NULL,
-
     description VARCHAR(300),
-
     is_selected BOOLEAN NOT NULL DEFAULT FALSE,
-
     CONSTRAINT fk_destinations_trip
         FOREIGN KEY (trip_id)
         REFERENCES app.trips(id)
         ON DELETE CASCADE,
-
     CONSTRAINT fk_destinations_user
         FOREIGN KEY (proposed_by_user_id)
         REFERENCES auth.users(id)
         ON DELETE RESTRICT
 );
 
+-- ----------------------------------------------------------------
+-- DESTINATION PHOTOS
+-- Fotografías asociadas a los destinos.
+-- ----------------------------------------------------------------
+CREATE TABLE app.destination_photos (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    destination_id INTEGER NOT NULL,
+    uploaded_by_user_id INTEGER NOT NULL,
+    file_path VARCHAR(255) NOT NULL UNIQUE,
+    position INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_destination_photos_position
+        UNIQUE (destination_id, position),
+    CONSTRAINT chk_destination_photos_position
+        CHECK (position > 0),
+    CONSTRAINT fk_destination_photos_destination
+        FOREIGN KEY (destination_id)
+        REFERENCES app.destinations(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_destination_photos_user
+        FOREIGN KEY (uploaded_by_user_id)
+        REFERENCES auth.users(id)
+        ON DELETE RESTRICT
+);
 
 -- ----------------------------------------------------------------
 -- ACTIVITIES
 -- Actividades que conforman el itinerario de un viaje.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.activities (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     trip_id INTEGER NOT NULL,
@@ -205,13 +206,11 @@ CREATE TABLE app.activities (
     start_time TIME,
     estimated_cost DECIMAL(12,2),
     status VARCHAR(20) NOT NULL DEFAULT 'PROPOSED',
-
     CONSTRAINT chk_activities_cost
         CHECK (
             estimated_cost IS NULL
             OR estimated_cost >= 0
         ),
-
     CONSTRAINT chk_activities_status
         CHECK (
             status IN (
@@ -220,128 +219,94 @@ CREATE TABLE app.activities (
                 'CANCELLED'
             )
         ),
-
     CONSTRAINT fk_activities_trip
         FOREIGN KEY (trip_id)
         REFERENCES app.trips(id)
         ON DELETE CASCADE
 );
 
-
 -- ----------------------------------------------------------------
 -- EXPENSE CATEGORIES
 -- Catálogo de categorías para clasificar los gastos.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.expense_categories (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name VARCHAR(80) NOT NULL UNIQUE
 );
 
-
 -- ----------------------------------------------------------------
 -- EXPENSES
 -- Gastos registrados dentro de un viaje.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.expenses (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-
     trip_id INTEGER NOT NULL,
-
     paid_by_user_id INTEGER NOT NULL,
-
     category_id INTEGER NOT NULL,
-
     title VARCHAR(150) NOT NULL,
-
     amount DECIMAL(12,2) NOT NULL,
-
     expense_date DATE NOT NULL,
-
     CONSTRAINT chk_expenses_amount
         CHECK (amount > 0),
-
     CONSTRAINT fk_expenses_trip
         FOREIGN KEY (trip_id)
         REFERENCES app.trips(id)
         ON DELETE RESTRICT,
-
     CONSTRAINT fk_expenses_user
         FOREIGN KEY (paid_by_user_id)
         REFERENCES auth.users(id)
         ON DELETE RESTRICT,
-
     CONSTRAINT fk_expenses_category
         FOREIGN KEY (category_id)
         REFERENCES app.expense_categories(id)
         ON DELETE RESTRICT
 );
 
-
 -- ----------------------------------------------------------------
 -- EXPENSE SPLITS
 -- División de un gasto entre los participantes.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.expense_splits (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-
     expense_id INTEGER NOT NULL,
-
     user_id INTEGER NOT NULL,
-
     amount DECIMAL(12,2) NOT NULL,
-
     CONSTRAINT uq_expense_splits
         UNIQUE (expense_id, user_id),
-
     CONSTRAINT chk_expense_splits_amount
         CHECK (amount > 0),
-
     CONSTRAINT fk_expense_splits_expense
         FOREIGN KEY (expense_id)
         REFERENCES app.expenses(id)
         ON DELETE CASCADE,
-
     CONSTRAINT fk_expense_splits_user
         FOREIGN KEY (user_id)
         REFERENCES auth.users(id)
         ON DELETE RESTRICT
 );
 
-
 -- ----------------------------------------------------------------
 -- POLLS
 -- Encuestas o votaciones relacionadas con un viaje.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.polls (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-
     trip_id INTEGER NOT NULL,
-
     question VARCHAR(250) NOT NULL,
-
     status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
-
     closes_at TIMESTAMP,
-
     CONSTRAINT chk_polls_status
         CHECK (status IN ('OPEN', 'CLOSED')),
-
     CONSTRAINT fk_polls_trip
         FOREIGN KEY (trip_id)
         REFERENCES app.trips(id)
         ON DELETE CASCADE
 );
 
-
 -- ----------------------------------------------------------------
 -- POLL OPTIONS
 -- Opciones disponibles dentro de cada encuesta.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.poll_options (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     poll_id INTEGER NOT NULL,
@@ -357,23 +322,17 @@ CREATE TABLE app.poll_options (
         ON DELETE CASCADE
 );
 
-
 -- ----------------------------------------------------------------
 -- VOTES
--- Voto realizado por un usuario sobre una opción.
---
--- El poll se obtiene mediante:
--- votes.option_id -> poll_options.poll_id
---
--- La regla "un voto por usuario por encuesta"
--- se implementará posteriormente mediante trigger.
+-- Cada fila registra el voto de un usuario por una opción.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.votes (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id INTEGER NOT NULL,
     option_id INTEGER NOT NULL,
     voted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_votes_option_user
+        UNIQUE (option_id, user_id),
     CONSTRAINT fk_votes_user
         FOREIGN KEY (user_id)
         REFERENCES auth.users(id)
@@ -384,23 +343,19 @@ CREATE TABLE app.votes (
         ON DELETE CASCADE
 );
 
-
 -- ----------------------------------------------------------------
 -- RESERVATION TYPES
 -- Catálogo con los tipos de reserva disponibles.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.reservation_types (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name VARCHAR(80) NOT NULL UNIQUE
 );
 
-
 -- ----------------------------------------------------------------
 -- RESERVATIONS
 -- Reservas simuladas asociadas a los viajes.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.reservations (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     trip_id INTEGER NOT NULL,
@@ -433,12 +388,10 @@ CREATE TABLE app.reservations (
         ON DELETE RESTRICT
 );
 
-
 -- ----------------------------------------------------------------
 -- NOTIFICATIONS
 -- Notificaciones personales de cada usuario.
 -- ----------------------------------------------------------------
-
 CREATE TABLE app.notifications (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id INTEGER NOT NULL,
@@ -452,17 +405,14 @@ CREATE TABLE app.notifications (
         ON DELETE CASCADE
 );
 
-
 -- ================================================================
 -- SCHEMA: AUDIT
 -- ================================================================
-
 
 -- ----------------------------------------------------------------
 -- AUDIT LOGS
 -- Registro de acciones relevantes realizadas dentro del sistema.
 -- ----------------------------------------------------------------
-
 CREATE TABLE audit.audit_logs (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id INTEGER,

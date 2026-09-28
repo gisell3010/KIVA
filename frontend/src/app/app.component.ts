@@ -6,11 +6,12 @@ import { AuthService } from './core/auth/auth.service';
 import { NotificationDropdownComponent } from './shared/components/notification-dropdown/notification-dropdown.component';
 import { ProfileDropdownComponent } from './shared/components/profile-dropdown/profile-dropdown.component';
 import { SearchComponent } from './shared/components/search/search.component';
+import { LogoComponent } from './shared/components/logo/logo.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, NotificationDropdownComponent, ProfileDropdownComponent, SearchComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, NotificationDropdownComponent, ProfileDropdownComponent, SearchComponent, LogoComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
@@ -55,7 +56,9 @@ export class AppComponent {
 
   protected roleLabel(role?: string): string {
     switch (role) {
+      case 'SUPER_ADMIN': return 'Super Administrador';
       case 'ADMIN': return 'Administrador';
+      case 'SUPPORT': return 'Soporte';
       case 'USER': return 'Usuario';
       default: return 'Usuario';
     }

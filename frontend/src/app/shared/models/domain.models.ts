@@ -1,6 +1,8 @@
 export type UUID = string;
 
-export type UserRole = 'ADMIN' | 'USER';
+export type GlobalRole = 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' | 'USER';
+
+export type UserRole = GlobalRole;
 
 export type GroupRole = 'OWNER' | 'MEMBER';
 
@@ -274,7 +276,7 @@ export interface AuthUser {
   displayName: string;
   avatarColor: string;
   initials: string;
-  role: UserRole;
+  role: GlobalRole;
   bio?: string;
 }
 
@@ -282,4 +284,37 @@ export interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+}
+
+export const GLOBAL_ROLE_HIERARCHY: Record<GlobalRole, number> = {
+  SUPER_ADMIN: 100,
+  ADMIN: 80,
+  SUPPORT: 60,
+  USER: 20,
+};
+
+export const GLOBAL_ROLE_LABELS: Record<GlobalRole, string> = {
+  SUPER_ADMIN: 'Super Administrador',
+  ADMIN: 'Administrador',
+  SUPPORT: 'Soporte',
+  USER: 'Usuario',
+};
+
+export const GLOBAL_ROLE_COLORS: Record<GlobalRole, string> = {
+  SUPER_ADMIN: '#7c3aed',
+  ADMIN: '#a855f7',
+  SUPPORT: '#22c55e',
+  USER: '#64748b',
+};
+
+export function hasGlobalRole(userRole: GlobalRole, requiredRole: GlobalRole): boolean {
+  return GLOBAL_ROLE_HIERARCHY[userRole] >= GLOBAL_ROLE_HIERARCHY[requiredRole];
+}
+
+export function canAccessAdminPanel(role: GlobalRole): boolean {
+  return hasGlobalRole(role, 'ADMIN');
+}
+
+export function canSupport(role: GlobalRole): boolean {
+  return hasGlobalRole(role, 'SUPPORT');
 }

@@ -1,4 +1,24 @@
-export type Rol = 'Administrador' | 'Organizador' | 'Participante' | 'Invitado';
+export type GlobalRole = 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' | 'USER';
+
+export type Rol = GlobalRole;
+
+export const GLOBAL_ROLE_HIERARCHY: Record<GlobalRole, number> = {
+  SUPER_ADMIN: 100,
+  ADMIN: 80,
+  SUPPORT: 60,
+  USER: 20,
+};
+
+export const GLOBAL_ROLE_LABELS: Record<GlobalRole, string> = {
+  SUPER_ADMIN: 'Super Administrador',
+  ADMIN: 'Administrador',
+  SUPPORT: 'Soporte',
+  USER: 'Usuario',
+};
+
+export function hasGlobalRole(userRole: GlobalRole, requiredRole: GlobalRole): boolean {
+  return GLOBAL_ROLE_HIERARCHY[userRole] >= GLOBAL_ROLE_HIERARCHY[requiredRole];
+}
 
 export interface Usuario {
   id: number;

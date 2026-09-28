@@ -43,7 +43,9 @@ import { User, UserRole, UUID } from '../../../shared/models/domain.models';
           <div class="filter-group">
             <select [(ngModel)]="roleFilter" (change)="onFilterChange()" class="filter-select" aria-label="Filtrar por rol">
               <option value="">Todos los roles</option>
+              <option value="SUPER_ADMIN">Super Administrador</option>
               <option value="ADMIN">Administrador</option>
+              <option value="SUPPORT">Soporte</option>
               <option value="USER">Usuario</option>
             </select>
 
@@ -83,8 +85,8 @@ import { User, UserRole, UUID } from '../../../shared/models/domain.models';
                     <span class="badge" [ngClass]="roleBadgeClass(user.role)">{{ roleLabel(user.role) }}</span>
                   </td>
                   <td>
-                    <span class="status-badge" [class.suspended]="user.id === '1'">
-                      {{ user.id === '1' ? 'Suspendido' : 'Activo' }}
+                    <span class="status-badge" [ngClass]="{ suspended: user.id === '9' }">
+                      {{ user.id === '9' ? 'Suspendido' : 'Activo' }}
                     </span>
                   </td>
                   <td class="text-center">{{ getGroupCount(user.id) }}</td>
@@ -92,9 +94,9 @@ import { User, UserRole, UUID } from '../../../shared/models/domain.models';
                   <td>{{ formatDate(user.createdAt) }}</td>
                   <td>
                     <div class="action-buttons">
-                      <button class="icon-btn" (click)="toggleUserStatus(user)" [attr.aria-label]="user.id === '1' ? 'Activar usuario' : 'Suspender usuario'" type="button">
+                      <button class="icon-btn" (click)="toggleUserStatus(user)" [attr.aria-label]="user.id === '9' ? 'Activar usuario' : 'Suspender usuario'" type="button">
                         <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                          <path [attr.d]="user.id === '1' ? 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2' : 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2M9 12h6'"/>
+                          <path [attr.d]="user.id === '9' ? 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2' : 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2M9 12h6'"/>
                         </svg>
                       </button>
                       <button class="icon-btn" (click)="toggleUserRole(user)" [attr.aria-label]="user.role === 'ADMIN' ? 'Cambiar a usuario' : 'Cambiar a administrador'" type="button">
@@ -327,9 +329,9 @@ export class AdminUsersComponent {
 
     if (this.statusFilter) {
       if (this.statusFilter === 'active') {
-        users = users.filter(u => u.id !== '1');
+        users = users.filter(u => u.id !== '9');
       } else if (this.statusFilter === 'suspended') {
-        users = users.filter(u => u.id === '1');
+        users = users.filter(u => u.id === '9');
       }
     }
 
@@ -369,7 +371,7 @@ export class AdminUsersComponent {
 
   toggleUserStatus(user: User): void {
     // In real app: call API to suspend/activate
-    console.log('Toggle status for:', user.id, user.id === '1' ? 'activate' : 'suspend');
+    console.log('Toggle status for:', user.id, user.id === '9' ? 'activate' : 'suspend');
   }
 
   toggleUserRole(user: User): void {
@@ -378,7 +380,7 @@ export class AdminUsersComponent {
   }
 
   confirmDeleteUser(user: User): void {
-    if (user.role === 'ADMIN') return; // Prevent deleting admins in demo
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'SUPPORT') return;
     this.userToDelete.set(user);
     this.showDeleteModal.set(true);
   }
@@ -400,7 +402,9 @@ export class AdminUsersComponent {
 
   roleBadgeClass(role: UserRole): string {
     switch (role) {
+      case 'SUPER_ADMIN': return 'badge-purple';
       case 'ADMIN': return 'badge-purple';
+      case 'SUPPORT': return 'badge-green';
       case 'USER': return 'badge-blue';
       default: return 'badge-gray';
     }
@@ -408,7 +412,9 @@ export class AdminUsersComponent {
 
   roleLabel(role: UserRole): string {
     switch (role) {
+      case 'SUPER_ADMIN': return 'Super Administrador';
       case 'ADMIN': return 'Administrador';
+      case 'SUPPORT': return 'Soporte';
       case 'USER': return 'Usuario';
       default: return 'Usuario';
     }

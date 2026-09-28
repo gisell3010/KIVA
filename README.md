@@ -117,4 +117,4 @@ Contraseña para todos: `demo123`
 2. PostgreSQL con esquemas: `auth`, `app`, `audit`
 3. Autenticación JWT (access/refresh tokens)
 4. Reemplazar `MockDataService` por servicios HTTP reales
-5. Configurar `environment.apiBaseUrl` (ej. `http://localhost:8000/api/v1`)
+5. Configurar `environment.apiBaseUrl` (ej. `http://localhost:8000/api/`)
