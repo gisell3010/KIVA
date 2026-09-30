@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 
 from app.core.security import hash_password, verify_password
 from app.models.user import User
@@ -47,7 +47,12 @@ def search_users(db, *, actor_id, username, pagination):
         .order_by(User.username, User.id)
     )
 
-    return page(db, statement, pagination, UserPublic)
+    return page(
+        db,
+        statement,
+        pagination,
+        UserPublic,
+    )
 
 
 @atomic
@@ -97,16 +102,67 @@ def change_email(db, *, actor_id, data):
     return saved(db, user, UserRead)
 
 
-def list_users(db, *, actor_id, pagination):
+def list_users(
+    db,
+    *,
+    actor_id,
+    pagination,
+    q=None,
+    role=None,
+    status=None,
+):
     actor = active_user(db, actor_id)
     allow(actor.role, {"SUPER_ADMIN", "ADMIN", "SUPPORT"})
 
+    statement = select(User)
+
+    if q and q.strip():
+        text = q.strip().lower()
+
+        statement = statement.where(
+            or_(
+                func.lower(User.full_name).contains(
+                    text,
+                    autoescape=True,
+                ),
+                User.username.contains(
+                    text,
+                    autoescape=True,
+                ),
+                User.email.contains(
+                    text,
+                    autoescape=True,
+                ),
+            )
+        )
+
+    if role is not None:
+        statement = statement.where(User.role == role)
+
+    if status is not None:
+        statement = statement.where(User.status == status)
+
     return page(
         db,
-        select(User).order_by(User.id),
+        statement.order_by(
+            User.created_at.desc(),
+            User.id.desc(),
+        ),
         pagination,
         UserRead,
     )
+
+
+def get_user(db, *, actor_id, user_id):
+    actor = active_user(db, actor_id)
+    allow(actor.role, {"SUPER_ADMIN", "ADMIN", "SUPPORT"})
+
+    user = required(
+        db,
+        select(User).where(User.id == user_id),
+    )
+
+    return UserRead.model_validate(user)
 
 
 @atomic
@@ -136,7 +192,11 @@ def admin_update_user(db, *, actor_id, user_id, data):
     user = by_id.get(user_id)
 
     if user is None:
-        fail("Usuario no disponible.", "NOT_FOUND", 404)
+        fail(
+            "Usuario no disponible.",
+            "NOT_FOUND",
+            404,
+        )
 
     changes = data.model_dump(exclude_unset=True)
 
@@ -151,8 +211,8 @@ def admin_update_user(db, *, actor_id, user_id, data):
     apply_patch(user, data)
 
     if not any(
-        u.role == "SUPER_ADMIN" and u.status == "ACTIVE"
-        for u in users
+        item.role == "SUPER_ADMIN" and item.status == "ACTIVE"
+        for item in users
     ):
         fail(
             "Debe conservarse un SUPER_ADMIN activo.",

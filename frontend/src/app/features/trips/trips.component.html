@@ -1,132 +1,340 @@
 <div class="trips-page">
   <div class="page-head">
     <div>
-      <h1 class="page-title">Mis viajes</h1>
-      <p class="page-subtitle">Organiza y gestiona tus viajes por grupo</p>
+      <h1 class="page-title">
+        Mis viajes
+      </h1>
+
+      <p class="page-subtitle">
+        Organiza y gestiona tus viajes por grupo
+      </p>
     </div>
-    <button class="btn btn-primary" routerLink="/viajes/nuevo">
-      <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-        <path d="M12 5v14M5 12h14"/>
+
+    <a
+      class="btn btn-primary"
+      routerLink="/viajes/nuevo"
+    >
+      <svg
+        class="ui-icon"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        aria-hidden="true"
+      >
+        <path d="M12 5v14M5 12h14" />
       </svg>
+
       Nuevo viaje
-    </button>
+    </a>
   </div>
+
+  @if (error()) {
+    <div
+      class="error-banner"
+      role="alert"
+    >
+      <svg
+        class="ui-icon"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 8v4M12 16h.01" />
+      </svg>
+
+      {{ error() }}
+    </div>
+  }
 
   <div class="filters-bar">
     <div class="filter-group">
-      <label for="groupFilter" class="sr-only">Filtrar por grupo</label>
+      <label
+        for="groupFilter"
+        class="sr-only"
+      >
+        Filtrar por grupo
+      </label>
+
       <select
         id="groupFilter"
-        [(ngModel)]="selectedGroupId"
         class="filter-select"
         aria-label="Filtrar por grupo"
+        [ngModel]="selectedGroupId()"
+        (ngModelChange)="onGroupFilterChange($event)"
+        [disabled]="loading()"
       >
-        <option value="all">Todos los grupos</option>
+        <option [ngValue]="null">
+          Todos los grupos
+        </option>
+
         @for (group of groups(); track group.id) {
-          <option [value]="group.id">{{ group.name }}</option>
+          <option [ngValue]="group.id">
+            {{ group.name }}
+          </option>
         }
       </select>
     </div>
 
     <div class="filter-group">
-      <label for="statusFilter" class="sr-only">Filtrar por estado</label>
+      <label
+        for="statusFilter"
+        class="sr-only"
+      >
+        Filtrar por estado
+      </label>
+
       <select
         id="statusFilter"
-        [(ngModel)]="selectedStatus"
         class="filter-select"
         aria-label="Filtrar por estado"
+        [ngModel]="selectedStatus()"
+        (ngModelChange)="onStatusFilterChange($event)"
+        [disabled]="loading()"
       >
-        @for (opt of statusOptions; track opt.value) {
-          <option [value]="opt.value">{{ opt.label }}</option>
+        @for (
+          option of statusOptions;
+          track option.value
+        ) {
+          <option [ngValue]="option.value">
+            {{ option.label }}
+          </option>
         }
       </select>
     </div>
   </div>
 
-  @if (userTrips().length > 0 && selectedGroupId() === 'all') {
-    <section class="quick-access">
-      <h3 class="section-title">Acceso rápido</h3>
-      <div class="quick-trips">
-        @for (trip of userTrips(); track trip.id) {
-          <a [routerLink]="['/viajes', trip.id]" class="quick-trip-card">
-            <div class="quick-trip-header" [style.border-left-color]="getGroupColor(trip.groupId)">
-              <span class="badge" [ngClass]="statusBadge(trip.status)">{{ statusLabel(trip.status) }}</span>
-            </div>
-            <div class="quick-trip-body">
-              <h4>{{ trip.name }}</h4>
-              <p class="quick-trip-group">{{ getGroupName(trip.groupId) }}</p>
-              <div class="quick-trip-dates">
-                <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18"/>
+  @if (loading()) {
+    <div class="loading-state">
+      <svg
+        class="ui-icon animate-spin"
+        width="32"
+        height="32"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        aria-hidden="true"
+      >
+        <path d="M21 12a9 9 0 11-6.219-8.56" />
+      </svg>
+
+      <p>
+        Cargando viajes...
+      </p>
+    </div>
+  } @else {
+    <div class="trips-grid">
+      @for (trip of trips(); track trip.id) {
+        <article class="trip-card">
+          <div
+            class="trip-card-header"
+            [style.border-left-color]="getGroupColor(trip.group_id)"
+          >
+            <span
+              class="badge"
+              [ngClass]="statusBadge(trip.status)"
+            >
+              {{ statusLabel(trip.status) }}
+            </span>
+
+            @if (trip.my_role; as role) {
+              <div class="trip-role">
+                <span
+                  class="badge"
+                  [ngClass]="roleBadge(role)"
+                >
+                  {{ roleLabel(role) }}
+                </span>
+              </div>
+            }
+          </div>
+
+          <div class="trip-card-body">
+            <h3>
+              {{ trip.name }}
+            </h3>
+
+            <p class="trip-group">
+              {{ getGroupName(trip.group_id) }}
+            </p>
+
+            <p class="trip-description">
+              {{ trip.description || 'Sin descripción.' }}
+            </p>
+
+            <div class="trip-meta">
+              <div class="meta-item">
+                <svg
+                  class="ui-icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  aria-hidden="true"
+                >
+                  <rect
+                    x="3"
+                    y="5"
+                    width="18"
+                    height="16"
+                    rx="2"
+                  />
+
+                  <path d="M7 3v4m10-4v4M3 11h18" />
                 </svg>
-                <span>{{ formatDate(trip.startDate) }} - {{ formatDate(trip.endDate) }}</span>
+
+                <span>
+                  {{
+                    tripDateRange(
+                      trip.start_date,
+                      trip.end_date
+                    )
+                  }}
+                </span>
+              </div>
+
+              <div class="meta-item">
+                <svg
+                  class="ui-icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
+                  />
+
+                  <circle
+                    cx="12"
+                    cy="7"
+                    r="4"
+                  />
+                </svg>
+
+                <span>
+                  {{ trip.members_count }}
+
+                  {{
+                    trip.members_count === 1
+                      ? 'participante'
+                      : 'participantes'
+                  }}
+                </span>
+              </div>
+
+              <div class="meta-item">
+                <svg
+                  class="ui-icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+
+                <span>
+                  {{ trip.destinations_count }}
+
+                  {{
+                    trip.destinations_count === 1
+                      ? 'destino propuesto'
+                      : 'destinos propuestos'
+                  }}
+                </span>
               </div>
             </div>
-            <div class="quick-trip-footer">
-              <span class="days-badge" [class.urgent]="getDaysUntil(trip.startDate) <= 30">
-                {{ getDaysUntil(trip.startDate) > 0 ? getDaysUntil(trip.startDate) + ' días' : 'En curso' }}
-              </span>
-            </div>
+          </div>
+
+          <div class="trip-card-footer">
+            <a
+              routerLink="/itinerario"
+              class="btn btn-outline btn-sm"
+            >
+              Ver itinerario
+            </a>
+
+            <a
+              routerLink="/destinos"
+              class="btn btn-primary btn-sm"
+            >
+              Ver destinos
+            </a>
+          </div>
+        </article>
+      }
+
+      @if (trips().length === 0) {
+        <div class="empty-state">
+          <svg
+            class="ui-icon"
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            aria-hidden="true"
+          >
+            <path
+              d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"
+            />
+
+            <path
+              d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h6z"
+            />
+          </svg>
+
+          <h3>
+            No hay viajes
+          </h3>
+
+          <p>
+            {{
+              selectedGroupId() !== null
+                ? 'Este grupo no tiene viajes con los filtros actuales.'
+                : 'No se encontraron viajes con los filtros actuales.'
+            }}
+          </p>
+
+          <a
+            class="btn btn-primary"
+            routerLink="/viajes/nuevo"
+          >
+            Crear primer viaje
           </a>
-        }
+        </div>
+      }
+    </div>
+
+    @if (pagination().total > 0) {
+      <div class="pagination-wrapper">
+        <app-pagination
+          [page]="pagination()"
+          (pageChange)="onPageChange($event)"
+        ></app-pagination>
       </div>
-    </section>
+    }
   }
-
-  <div class="trips-grid">
-    @for (trip of filteredTrips(); track trip.id) {
-      <article class="trip-card">
-        <div class="trip-card-header" [style.border-left-color]="getGroupColor(trip.groupId)">
-          <span class="badge" [ngClass]="statusBadge(trip.status)">{{ statusLabel(trip.status) }}</span>
-          <div class="trip-role" *ngIf="getUserRole(trip.id, '2') as role">
-            <span class="badge" [ngClass]="roleBadge(role)">{{ roleLabel(role) }}</span>
-          </div>
-        </div>
-
-        <div class="trip-card-body">
-          <h3>{{ trip.name }}</h3>
-          <p class="trip-group">{{ getGroupName(trip.groupId) }}</p>
-          <p class="trip-description">{{ trip.description }}</p>
-
-          <div class="trip-meta">
-            <div class="meta-item">
-              <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18"/>
-              </svg>
-              <span>{{ formatDate(trip.startDate) }} - {{ formatDate(trip.endDate) }}</span>
-            </div>
-            <div class="meta-item">
-              <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-              </svg>
-              <span>{{ getMemberCount(trip.id) }} participantes</span>
-            </div>
-            <div class="meta-item">
-              <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-              </svg>
-              <span>{{ formatMoney(trip.totalBudget) }} presupuesto</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="trip-card-footer">
-          <a [routerLink]="['/viajes', trip.id]" class="btn btn-outline btn-sm">Ver detalles</a>
-          <button class="btn btn-primary btn-sm">Gestionar</button>
-        </div>
-      </article>
-    }
-
-    @if (filteredTrips().length === 0) {
-      <div class="empty-state" style="grid-column: 1 / -1;">
-        <svg class="ui-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h6z"/>
-        </svg>
-        <h3>No hay viajes</h3>
-        <p>{{ selectedGroupId() !== 'all' ? 'Este grupo no tiene viajes aún' : 'No se encontraron viajes con los filtros actuales' }}</p>
-        <button class="btn btn-primary" routerLink="/viajes/nuevo" style="margin-top: 12px;">Crear primer viaje</button>
-      </div>
-    }
-  </div>
 </div>

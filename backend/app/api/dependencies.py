@@ -3,11 +3,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import Depends, Path, Query
+from fastapi import Depends, Header, Path, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.core.permissions import (
     GlobalRole,
@@ -21,8 +22,7 @@ from app.models.auth_session import AuthSession
 from app.models.group import GroupMember
 from app.models.trip import Trip, TripMember
 from app.models.user import User
-from app.schemas.common import PaginationParams
-
+from app.schemas.common import PaginationParams, as_utc
 
 bearer = HTTPBearer(auto_error=False, bearerFormat="JWT")
 
@@ -81,7 +81,7 @@ def get_auth_context(
 
     if (
         auth_session.revoked_at is not None
-        or auth_session.expires_at <= datetime.now(timezone.utc)
+        or as_utc(auth_session.expires_at) <= datetime.now(timezone.utc)
     ):
         raise _authentication_error()
 
@@ -216,3 +216,42 @@ def get_pagination(
 
 
 Pagination = Annotated[PaginationParams, Depends(get_pagination)]
+
+
+def require_browser_request(
+    request: Request,
+    x_kiva_csrf: Annotated[
+        str | None, Header(alias="X-KIVA-CSRF")
+    ] = None,
+) -> None:
+    if x_kiva_csrf != "1":
+        raise AppError(
+            "Falta el encabezado de protección de la solicitud.",
+            403,
+            "CSRF_HEADER_REQUIRED",
+        )
+
+    origin = request.headers.get("origin")
+    own_origin = f"{request.url.scheme}://{request.url.netloc}"
+    allowed = {*get_settings().CORS_ORIGINS, own_origin}
+
+    if origin is not None and origin not in allowed:
+        raise AppError(
+            "El origen de la solicitud no está permitido.",
+            403,
+            "ORIGIN_NOT_ALLOWED",
+        )
+
+
+def clear_refresh_cookie(response: Response) -> None:
+    settings = get_settings()
+
+    response.delete_cookie(
+        key=settings.refresh_cookie_name,
+        path=settings.refresh_cookie_path,
+        secure=settings.secure_cookies,
+        httponly=True,
+        samesite="lax",
+    )
+
+    response.headers["Cache-Control"] = "no-store"

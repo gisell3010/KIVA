@@ -66,3 +66,48 @@
 .actividad-costo { font-size: 0.8rem; font-weight: 600; color: var(--accent-cyan); }
 
 .empty-state { text-align: center; color: var(--text-muted); padding: 40px; }
+
+.actividad-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.actividad-ubicacion {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.actividad-ubicacion .ui-icon {
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .actividad-item {
+    grid-template-columns: 48px 32px 1fr;
+    gap: 8px;
+  }
+
+  .actividad-hora {
+    font-size: 0.7rem;
+  }
+
+  .actividad-dot {
+    width: 32px;
+    height: 32px;
+  }
+
+  .actividad-card {
+    padding: 12px;
+  }
+
+  .actividad-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

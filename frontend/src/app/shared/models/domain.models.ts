@@ -1,320 +1,428 @@
-export type UUID = string;
-
 export type GlobalRole = 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT' | 'USER';
-
-export type UserRole = GlobalRole;
-
+export type UserStatus = 'ACTIVE' | 'SUSPENDED';
 export type GroupRole = 'OWNER' | 'MEMBER';
-
 export type TripRole = 'OWNER' | 'ORGANIZER' | 'MEMBER';
-
-export type TripStatus = 'PLANNING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED';
-
-export type NotificationType =
-  | 'GROUP_INVITATION'
-  | 'TRIP_INVITATION'
-  | 'TRIP_UPDATE'
-  | 'VOTE'
-  | 'EXPENSE'
-  | 'RESERVATION'
-  | 'CALENDAR'
-  | 'SYSTEM';
-
-export type ActivityType = 'TRANSFER' | 'ACCOMMODATION' | 'MEAL' | 'TOUR' | 'LEISURE' | 'OTHER';
-
-export type ExpenseCategory = 'TRANSPORT' | 'ACCOMMODATION' | 'FOOD' | 'ACTIVITIES' | 'OTHER';
-
-export type ReservationType = 'FLIGHT' | 'HOTEL' | 'ACTIVITY' | 'TRANSPORT';
-
-export type ReservationStatus = 'SIMULATED' | 'PENDING' | 'CONFIRMED';
-
-export type CalendarEventType = 'ACTIVITY' | 'RESERVATION' | 'VOTING' | 'PAYMENT';
-
+export type TripStatus = 'PLANNING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+export type ActivityStatus = 'PROPOSED' | 'APPROVED' | 'CANCELLED';
+export type ReservationStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED';
 export type PollStatus = 'OPEN' | 'CLOSED';
+export type Money = string;
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export interface Pagination {
+  page?: number;
+  page_size?: number;
+}
 
-export interface User {
-  id: UUID;
+export interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface UserPublic {
+  id: number;
+  full_name: string;
+  username: string;
+  profile_image: string | null;
+}
+
+export interface UserRead extends UserPublic {
   email: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  avatarColor: string;
-  initials: string;
-  role: UserRole;
-  bio?: string;
-  timezone: string;
-  locale: string;
-  createdAt: string;
-  updatedAt: string;
+  role: GlobalRole;
+  status: UserStatus;
+  created_at: string;
 }
 
-export interface UserProfile extends User {
-  preferences: UserPreferences;
+export interface UserUpdate {
+  full_name?: string;
+  username?: string;
 }
 
-export interface UserPreferences {
-  theme: ThemeMode;
-  notifications: NotificationPreferences;
+export interface UserAdminUpdate {
+  role?: GlobalRole;
+  status?: UserStatus;
 }
 
-export interface NotificationPreferences {
-  email: boolean;
-  push: boolean;
-  groupInvitations: boolean;
-  tripInvitations: boolean;
-  tripUpdates: boolean;
-  votes: boolean;
-  expenses: boolean;
-  reservations: boolean;
-  calendar: boolean;
-  system: boolean;
+export interface UserFilters extends Pagination {
+  q?: string;
+  role?: GlobalRole;
+  status?: UserStatus;
 }
 
-export interface Group {
-  id: UUID;
-  name: string;
-  description: string;
-  ownerId: UUID;
-  colorTheme: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface GroupMember {
-  id: UUID;
-  groupId: UUID;
-  userId: UUID;
-  role: GroupRole;
-  joinedAt: string;
-}
-
-export interface GroupInvitation {
-  id: UUID;
-  groupId: UUID;
+export interface RegisterRequest {
+  first_name: string;
+  second_name?: string | null;
+  first_last_name: string;
+  second_last_name?: string | null;
+  username: string;
   email: string;
-  invitedById: UUID;
-  role: GroupRole;
-  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED';
-  createdAt: string;
-  expiresAt: string;
+  password: string;
 }
 
-export interface Trip {
-  id: UUID;
-  groupId: UUID;
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: 'bearer';
+  expires_in: number;
+  user: UserRead;
+}
+
+export interface AuthSessionRead {
+  id: number;
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+}
+
+export interface PasswordChangeRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export interface EmailChangeRequest {
+  email: string;
+  current_password: string;
+}
+
+export interface GroupCreate {
   name: string;
-  description: string;
-  startDate: string;
-  endDate: string;
+  description?: string | null;
+}
+
+export type GroupUpdate = Partial<GroupCreate>;
+
+export interface GroupRead {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: string;
+  my_role: GroupRole | null;
+  members_count: number;
+  trips_count: number;
+}
+
+export interface MemberIdentity {
+  id: number;
+  user_id: number;
+  full_name: string;
+  username: string;
+  profile_image: string | null;
+}
+
+export interface GroupMemberRead extends MemberIdentity {
+  group_id: number;
+  role: GroupRole;
+  joined_at: string;
+}
+
+export interface TripCreate {
+  group_id: number;
+  name: string;
+  description?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
+export type TripUpdate =
+  Partial<Omit<TripCreate, 'group_id'>> & {
+    status?: TripStatus;
+  };
+
+export interface TripRead {
+  id: number;
+  group_id: number;
+  group_name: string;
+  name: string;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
   status: TripStatus;
-  mainDestinationId?: UUID;
-  totalBudget: number;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  my_role: TripRole | null;
+  members_count: number;
+  destinations_count: number;
+  selected_destinations_count: number;
 }
 
-export interface TripMember {
-  id: UUID;
-  tripId: UUID;
-  userId: UUID;
+export interface TripMemberRead extends MemberIdentity {
+  trip_id: number;
   role: TripRole;
-  joinedAt: string;
 }
 
-export interface TripDestination {
-  id: UUID;
-  tripId: UUID;
-  name: string;
+export interface TripMemberAdd {
+  user_id: number;
+  role?: 'ORGANIZER' | 'MEMBER';
+}
+
+export interface DestinationCreate {
   country: string;
-  description: string;
-  estimatedCost: number;
-  votes: number;
-  imageUrl?: string;
-  createdAt: string;
+  place_name: string;
+  description?: string | null;
 }
 
-export interface Activity {
-  id: UUID;
-  tripId: UUID;
-  destinationId?: UUID;
+export type DestinationUpdate = Partial<DestinationCreate>;
+
+export interface DestinationRead {
+  id: number;
+  trip_id: number;
+  proposed_by_user_id: number;
+  country: string;
+  place_name: string;
+  description: string | null;
+  is_selected: boolean;
+}
+
+export interface DestinationPhotoRead {
+  id: number;
+  destination_id: number;
+  uploaded_by_user_id: number;
+  image_url: string;
+  position: number;
+  created_at: string;
+}
+
+export interface ActivityCreate {
+  title: string;
+  description?: string | null;
+  location?: string | null;
+  activity_date: string;
+  start_time?: string | null;
+  estimated_cost?: Money | null;
+}
+
+export type ActivityUpdate = Partial<ActivityCreate> & {
+  status?: ActivityStatus;
+};
+
+export interface ActivityRead {
+  id: number;
+  trip_id: number;
+  title: string;
+  description: string | null;
+  location: string | null;
+  activity_date: string;
+  start_time: string | null;
+  estimated_cost: Money | null;
+  status: ActivityStatus;
+}
+
+export interface CatalogRead {
+  id: number;
   name: string;
-  description: string;
-  type: ActivityType;
-  estimatedCost: number;
-  startDate: string;
-  endDate: string;
-  status: 'PROPOSED' | 'CONFIRMED' | 'CANCELLED';
-  createdAt: string;
 }
 
-export interface ItineraryDay {
-  id: UUID;
-  tripId: UUID;
-  date: string;
-  dayNumber: number;
-  note?: string;
+export interface ExpenseSplitCreate {
+  user_id: number;
+  amount: Money;
 }
 
-export interface ItineraryItem {
-  id: UUID;
-  itineraryDayId: UUID;
-  activityId?: UUID;
-  time: string;
+export interface ExpenseCreate {
+  paid_by_user_id: number;
+  category_id: number;
   title: string;
-  description: string;
-  type: ActivityType;
-  cost: number;
-  responsibleUserId?: UUID;
-  order: number;
+  amount: Money;
+  expense_date: string;
+  splits: ExpenseSplitCreate[];
 }
 
-export interface Poll {
-  id: UUID;
-  tripId: UUID;
-  title: string;
-  description: string;
+export type ExpenseUpdate = Partial<ExpenseCreate>;
+
+export interface ExpenseRead extends Omit<ExpenseCreate, 'splits'> {
+  id: number;
+  trip_id: number;
+}
+
+export interface ExpenseSplitRead extends ExpenseSplitCreate {
+  id: number;
+  expense_id: number;
+}
+
+export interface ExpenseDetail extends ExpenseRead {
+  splits: ExpenseSplitRead[];
+}
+
+export interface ExpenseBalanceRead {
+  user_id: number;
+  total_paid: Money;
+  total_share: Money;
+  balance: Money;
+}
+
+export interface PollOptionCreate {
+  option_text: string;
+}
+
+export interface PollCreate {
+  question: string;
+  closes_at?: string | null;
+  options: PollOptionCreate[];
+}
+
+export type PollUpdate = Partial<Omit<PollCreate, 'options'>>;
+
+export interface PollOptionUpdate {
+  option_text?: string;
+  option_number?: number;
+}
+
+export interface PollRead {
+  id: number;
+  trip_id: number;
+  question: string;
   status: PollStatus;
-  closesAt: string;
-  createdAt: string;
-  createdById: UUID;
+  closes_at: string | null;
 }
 
-export interface PollOption {
-  id: UUID;
-  pollId: UUID;
-  text: string;
-  votes: number;
-  order: number;
+export interface PollOptionRead extends PollOptionCreate {
+  id: number;
+  poll_id: number;
+  option_number: number;
 }
 
-export interface PollBallot {
-  id: UUID;
-  pollId: UUID;
-  userId: UUID;
-  optionId: UUID;
-  createdAt: string;
+export interface PollDetail extends PollRead {
+  options: PollOptionRead[];
 }
 
-export interface Expense {
-  id: UUID;
-  tripId: UUID;
-  concept: string;
-  category: ExpenseCategory;
-  amount: number;
-  paidById: UUID;
-  date: string;
-  splitBetween: UUID[];
-  createdAt: string;
+export interface VoteRead {
+  id: number;
+  user_id: number;
+  option_id: number;
+  voted_at: string;
 }
 
-export interface ExpenseSplit {
-  id: UUID;
-  expenseId: UUID;
-  userId: UUID;
-  amount: number;
-  isPaid: boolean;
+export interface PollOptionResult extends PollOptionRead {
+  votes_count: number;
+  selected_by_me: boolean;
 }
 
-export interface Settlement {
-  id: UUID;
-  tripId: UUID;
-  fromUserId: UUID;
-  toUserId: UUID;
-  amount: number;
-  status: 'PENDING' | 'COMPLETED';
-  createdAt: string;
+export interface PollResults {
+  poll_id: number;
+  total_voters: number;
+  total_votes: number;
+  options: PollOptionResult[];
 }
 
-export interface Reservation {
-  id: UUID;
-  tripId: UUID;
-  type: ReservationType;
-  provider: string;
-  detail: string;
-  date: string;
-  cost: number;
-  status: ReservationStatus;
-  createdAt: string;
-}
-
-export interface ReservationParticipant {
-  id: UUID;
-  reservationId: UUID;
-  userId: UUID;
-  confirmed: boolean;
-}
-
-export interface CalendarEvent {
-  id: UUID;
-  tripId: UUID;
-  date: string;
+export interface ReservationCreate {
+  type_id: number;
   title: string;
-  type: CalendarEventType;
-  relatedEntityId?: UUID;
-  relatedEntityType?: 'ACTIVITY' | 'RESERVATION' | 'POLL' | 'EXPENSE';
+  provider?: string | null;
+  reservation_date?: string | null;
+  amount?: Money | null;
 }
 
-export interface Notification {
-  id: UUID;
-  userId: UUID;
-  type: NotificationType;
+export type ReservationUpdate = Partial<ReservationCreate> & {
+  status?: ReservationStatus;
+};
+
+export interface ReservationRead {
+  id: number;
+  trip_id: number;
+  type_id: number;
+  title: string;
+  provider: string | null;
+  reservation_date: string | null;
+  amount: Money | null;
+  status: ReservationStatus;
+}
+
+export interface NotificationRead {
+  id: number;
+  user_id: number;
   title: string;
   message: string;
-  readAt?: string;
-  createdAt: string;
-  actionUrl?: string;
-  metadata?: Record<string, unknown>;
+  is_read: boolean;
+  created_at: string;
 }
 
-export interface AuthUser {
-  id: UUID;
-  email: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  avatarColor: string;
-  initials: string;
-  role: GlobalRole;
-  bio?: string;
+export interface UnreadCount {
+  total: number;
 }
 
-export interface AuthState {
-  user: AuthUser | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
+export interface DashboardRead {
+  groups_count: number;
+  trips_count: number;
+  participants_count: number;
+  upcoming_activities_count: number;
+  unread_notifications_count: number;
+  open_polls_count: number;
+  total_expenses: Money;
+  currency: 'COP';
 }
 
-export const GLOBAL_ROLE_HIERARCHY: Record<GlobalRole, number> = {
-  SUPER_ADMIN: 100,
-  ADMIN: 80,
-  SUPPORT: 60,
-  USER: 20,
-};
-
-export const GLOBAL_ROLE_LABELS: Record<GlobalRole, string> = {
-  SUPER_ADMIN: 'Super Administrador',
-  ADMIN: 'Administrador',
-  SUPPORT: 'Soporte',
-  USER: 'Usuario',
-};
-
-export const GLOBAL_ROLE_COLORS: Record<GlobalRole, string> = {
-  SUPER_ADMIN: '#7c3aed',
-  ADMIN: '#a855f7',
-  SUPPORT: '#22c55e',
-  USER: '#64748b',
-};
-
-export function hasGlobalRole(userRole: GlobalRole, requiredRole: GlobalRole): boolean {
-  return GLOBAL_ROLE_HIERARCHY[userRole] >= GLOBAL_ROLE_HIERARCHY[requiredRole];
+export interface SupportDashboardRead {
+  users_count: number;
+  active_users_count: number;
+  suspended_users_count: number;
 }
 
-export function canAccessAdminPanel(role: GlobalRole): boolean {
-  return hasGlobalRole(role, 'ADMIN');
+export interface AdminDashboardRead extends SupportDashboardRead {
+  groups_count: number;
+  trips_count: number;
+  active_trips_count: number;
+  expenses_count: number;
+  reservations_count: number;
+  polls_count: number;
+  open_polls_count: number;
+  total_expenses: Money;
+  currency: 'COP';
+  users_by_role: Record<GlobalRole, number>;
+  trips_by_status: Record<TripStatus, number>;
 }
 
-export function canSupport(role: GlobalRole): boolean {
-  return hasGlobalRole(role, 'SUPPORT');
+export interface SystemConfigRead {
+  app_name: string;
+  environment: 'development' | 'test' | 'production';
+  api_prefix: string;
+  currency: 'COP';
+  access_token_minutes: number;
+  refresh_token_days: number;
+  max_image_bytes: number;
+  max_destination_photos: number;
+}
+
+export interface CalendarEventRead {
+  trip_id: number;
+  source_type: 'TRIP' | 'ACTIVITY' | 'RESERVATION' | 'POLL' | 'EXPENSE';
+  source_id: number;
+  title: string;
+  event_date: string | null;
+  start_time: string | null;
+  deadline_at: string | null;
+}
+
+export interface CalendarFilters {
+  start_date: string;
+  end_date: string;
+  trip_id?: number;
+}
+
+export interface AuditLogRead {
+  id: number;
+  user_id: number | null;
+  action: string;
+  entity: string | null;
+  entity_id: number | null;
+  created_at: string;
+}
+
+export interface AuditFilters extends Pagination {
+  user_id?: number;
+  action?: string;
+  entity?: string;
+  entity_id?: number;
+  created_from?: string;
+  created_to?: string;
+}
+
+export interface HealthRead {
+  status: 'ok' | 'error';
+}
+
+export interface ReadinessRead extends HealthRead {
+  database: 'ok' | 'unavailable';
 }

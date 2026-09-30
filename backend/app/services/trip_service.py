@@ -1,12 +1,13 @@
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 
 from app.models.activity import Activity
 from app.models.destination import Destination
 from app.models.destination_photo import DestinationPhoto
 from app.models.expense import Expense, ExpenseSplit
-from app.models.group import GroupMember
+from app.models.group import GroupMember, TravelGroup
 from app.models.poll import Poll, PollOption, Vote
 from app.models.trip import Trip, TripMember
+from app.models.user import User
 from app.schemas.trip import TripMemberRead, TripRead
 from app.services.notification_service import create_notification
 from app.services._shared import (
@@ -20,14 +21,100 @@ from app.services._shared import (
     editable,
     fail,
     group_access,
-    page,
+    mapped_page,
     participant,
     required,
-    saved,
     trip_access,
     visible_trips,
 )
 from app.storage.destination_images import remove_image
+
+
+def trip_query(actor_id):
+    members_count = (
+        select(func.count(TripMember.id))
+        .where(TripMember.trip_id == Trip.id)
+        .correlate(Trip)
+        .scalar_subquery()
+    )
+
+    my_role = (
+        select(TripMember.role)
+        .join(
+            GroupMember,
+            (GroupMember.user_id == TripMember.user_id)
+            & (GroupMember.group_id == Trip.group_id),
+        )
+        .where(
+            TripMember.trip_id == Trip.id,
+            TripMember.user_id == actor_id,
+        )
+        .correlate(Trip)
+        .scalar_subquery()
+    )
+
+    destinations_count = (
+        select(func.count(Destination.id))
+        .where(Destination.trip_id == Trip.id)
+        .correlate(Trip)
+    )
+
+    return select(
+        Trip.id,
+        Trip.group_id,
+        Trip.name,
+        Trip.description,
+        Trip.start_date,
+        Trip.end_date,
+        Trip.status,
+        Trip.created_at,
+        TravelGroup.name.label("group_name"),
+        my_role.label("my_role"),
+        members_count.label("members_count"),
+        destinations_count
+        .scalar_subquery()
+        .label("destinations_count"),
+        destinations_count
+        .where(Destination.is_selected.is_(True))
+        .scalar_subquery()
+        .label("selected_destinations_count"),
+    ).join(
+        TravelGroup,
+        TravelGroup.id == Trip.group_id,
+    )
+
+
+def _member_query():
+    return select(
+        TripMember.id,
+        TripMember.trip_id,
+        TripMember.user_id,
+        TripMember.role,
+        User.full_name,
+        User.username,
+        User.profile_image,
+    ).join(User, User.id == TripMember.user_id)
+
+
+def _read_trip(db, actor_id, trip_id):
+    row = db.execute(
+        trip_query(actor_id).where(Trip.id == trip_id)
+    ).mappings().one_or_none()
+
+    if row is None:
+        fail("Viaje no disponible.", "NOT_FOUND", 404)
+
+    return TripRead.model_validate(row)
+
+
+def _read_member(db, member_id):
+    row = db.execute(
+        _member_query().where(
+            TripMember.id == member_id
+        )
+    ).mappings().one()
+
+    return TripMemberRead.model_validate(row)
 
 
 def list_trips(
@@ -39,7 +126,7 @@ def list_trips(
 ):
     active_user(db, actor_id)
 
-    statement = select(Trip).where(
+    statement = trip_query(actor_id).where(
         Trip.id.in_(visible_trips(actor_id))
     )
 
@@ -49,17 +136,20 @@ def list_trips(
             Trip.group_id == group_id
         )
 
-    return page(
+    return mapped_page(
         db,
-        statement.order_by(Trip.id.desc()),
+        statement.order_by(
+            Trip.created_at.desc(),
+            Trip.id.desc(),
+        ),
         pagination,
         TripRead,
     )
 
 
 def get_trip(db, *, actor_id, trip_id):
-    trip, _ = trip_access(db, actor_id, trip_id)
-    return TripRead.model_validate(trip)
+    trip_access(db, actor_id, trip_id)
+    return _read_trip(db, actor_id, trip_id)
 
 
 @atomic
@@ -89,7 +179,8 @@ def create_trip(db, *, actor_id, data):
 
     audit(db, actor_id, "TRIP_CREATE", trip)
 
-    return saved(db, trip, TripRead)
+    db.flush()
+    return _read_trip(db, actor_id, trip.id)
 
 
 @atomic
@@ -170,15 +261,16 @@ def update_trip(db, *, actor_id, trip_id, data):
 
     audit(db, actor_id, "TRIP_UPDATE", trip)
 
-    return saved(db, trip, TripRead)
+    db.flush()
+    return _read_trip(db, actor_id, trip.id)
 
 
 def list_members(db, *, actor_id, trip_id, pagination):
     trip_access(db, actor_id, trip_id)
 
-    return page(
+    return mapped_page(
         db,
-        select(TripMember)
+        _member_query()
         .where(TripMember.trip_id == trip_id)
         .order_by(TripMember.id),
         pagination,
@@ -228,8 +320,9 @@ def add_member(db, *, actor_id, trip_id, data):
     )
 
     db.add(member)
+    db.flush()
 
-    result = saved(db, member, TripMemberRead)
+    result = _read_member(db, member.id)
 
     create_notification(
         db,
@@ -271,7 +364,8 @@ def update_member(
     member.role = data.role
     audit(db, actor_id, "TRIP_MEMBER_UPDATE", member)
 
-    return saved(db, member, TripMemberRead)
+    db.flush()
+    return _read_member(db, member.id)
 
 
 @atomic
@@ -365,7 +459,8 @@ def transfer_ownership(db, *, actor_id, trip_id, data):
         successor.role = "OWNER"
         audit(db, actor_id, "TRIP_OWNER_CHANGE", trip)
 
-    return saved(db, successor, TripMemberRead)
+    db.flush()
+    return _read_member(db, successor.id)
 
 
 @atomic

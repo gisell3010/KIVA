@@ -32,6 +32,9 @@ class GroupRead(Schema):
     name: str
     description: str | None
     created_at: UTCDateTime
+    my_role: GroupRole | None
+    members_count: int = Field(ge=0)
+    trips_count: int = Field(ge=0)
 
 
 class GroupMemberAdd(Schema):
@@ -44,3 +47,6 @@ class GroupMemberRead(Schema):
     user_id: Id
     role: GroupRole
     joined_at: UTCDateTime
+    full_name: str
+    username: str
+    profile_image: str | None

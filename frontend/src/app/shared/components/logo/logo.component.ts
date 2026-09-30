@@ -1,26 +1,49 @@
-import { Component, input, computed, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+  Component,
+  input,
+  signal,
+} from '@angular/core';
 
 @Component({
   selector: 'app-logo',
   standalone: true,
-  imports: [CommonModule],
   template: `
-    <div class="logo-container" [class.compact]="compact()">
-      <div class="logo-icon-wrapper" [class.has-error]="imageError()">
-        @if (!imageError() && logoSrc()) {
+    <div
+      class="logo-container"
+      [class.compact]="compact()"
+    >
+      <div class="logo-icon-wrapper">
+        @if (!imageError()) {
           <img
             class="logo-image"
             [src]="logoSrc()"
             [alt]="'KIVA - ' + getMeaning()"
             (error)="onImageError()"
-            loading="lazy"
           />
         } @else {
-          <div class="logo-fallback" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12Z"/>
+          <div
+            class="logo-fallback"
+            aria-hidden="true"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+              />
+
+              <path
+                d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12Z"
+              />
             </svg>
           </div>
         }
@@ -28,8 +51,13 @@ import { CommonModule } from '@angular/common';
 
       @if (!compact() && showText()) {
         <div class="logo-text">
-          <div class="logo-name">KIVA</div>
-          <div class="logo-sub">{{ getMeaning() }}</div>
+          <div class="logo-name">
+            KIVA
+          </div>
+
+          <div class="logo-sub">
+            {{ getMeaning() }}
+          </div>
         </div>
       }
     </div>
@@ -39,6 +67,7 @@ import { CommonModule } from '@angular/common';
       display: flex;
       align-items: center;
       gap: 10px;
+      min-width: 0;
     }
 
     .logo-container.compact {
@@ -46,37 +75,41 @@ import { CommonModule } from '@angular/common';
     }
 
     .logo-icon-wrapper {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 40px;
+      height: 40px;
       flex-shrink: 0;
       overflow: hidden;
-      position: relative;
+      border-radius: 10px;
     }
 
     .logo-container.compact .logo-icon-wrapper {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border-radius: 8px;
     }
 
     .logo-image {
+      display: block;
       width: 100%;
       height: 100%;
-      object-fit: cover;
-      border-radius: inherit;
+      object-fit: contain;
     }
 
     .logo-fallback {
-      width: 100%;
-      height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 100%;
+      height: 100%;
+      background:
+        linear-gradient(
+          135deg,
+          var(--accent-blue),
+          var(--accent-purple)
+        );
       color: white;
     }
 
@@ -88,39 +121,48 @@ import { CommonModule } from '@angular/common';
     .logo-text {
       display: flex;
       flex-direction: column;
-      line-height: 1.1;
       min-width: 0;
       overflow: hidden;
+      line-height: 1.1;
     }
 
     .logo-name {
-      font-weight: 700;
-      font-size: 1rem;
-      white-space: nowrap;
       overflow: hidden;
+      color: var(--text-primary);
+      font-size: 1rem;
+      font-weight: 700;
       text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .logo-sub {
-      font-size: 0.62rem;
-      color: var(--text-muted);
-      white-space: nowrap;
       overflow: hidden;
+      color: var(--text-muted);
+      font-size: 0.62rem;
       text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     @media (max-width: 480px) {
-      .logo-name { font-size: 0.9rem; }
-      .logo-sub { font-size: 0.58rem; }
+      .logo-name {
+        font-size: 0.9rem;
+      }
+
+      .logo-sub {
+        font-size: 0.58rem;
+      }
     }
-  `]
+  `],
 })
 export class LogoComponent {
-  readonly logoSrc = input<string>('assets/logo/kiva-logo.svg');
+  readonly logoSrc = input<string>(
+    '/assets/logo/kiva-logo.png',
+  );
+
   readonly compact = input<boolean>(false);
   readonly showText = input<boolean>(true);
 
-  protected imageError = signal(false);
+  protected readonly imageError = signal(false);
 
   onImageError(): void {
     this.imageError.set(true);

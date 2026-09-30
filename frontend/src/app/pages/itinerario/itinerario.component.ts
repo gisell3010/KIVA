@@ -1,7 +1,18 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MockDataService } from '../../data-access/mock/mock-data.service';
-import { Trip } from '../../shared/models/domain.models';
+import { ActivitiesApiService } from '../../data-access/api/activities-api.service';
+import { TripsApiService } from '../../data-access/api/trips-api.service';
+import { GroupsApiService } from '../../data-access/api/groups-api.service';
+import { TripRead, ActivityRead, GroupRead } from '../../shared/models/domain.models';
+import { formatMoney } from '../../shared/utils/money.utils';
+import { formatDate } from '../../shared/utils/date.utils';
+import { ApiError } from '../../core/http/error.interceptor';
+
+interface ItineraryDay {
+  date: string;
+  dayNumber: number;
+  activities: ActivityRead[];
+}
 
 @Component({
   selector: 'app-itinerario',
@@ -10,69 +21,177 @@ import { Trip } from '../../shared/models/domain.models';
   templateUrl: './itinerario.component.html',
   styleUrl: './itinerario.component.css'
 })
-export class ItinerarioComponent {
-  private mockData = inject(MockDataService);
+export class ItinerarioComponent implements OnInit {
+  private readonly activitiesApi = inject(ActivitiesApiService);
+  private readonly tripsApi = inject(TripsApiService);
+  private readonly groupsApi = inject(GroupsApiService);
 
-  trips = this.mockData.trips;
-  groups = this.mockData.groups;
+  readonly trips = signal<TripRead[]>([]);
+  readonly groups = signal<GroupRead[]>([]);
 
-  selectedTripId = signal<string>(this.trips()[0]?.id || '');
+  readonly selectedTripId = signal<number | null>(null);
+  readonly itineraryDays = signal<ItineraryDay[]>([]);
 
-  selectedTrip = computed(() => this.trips().find(t => t.id === this.selectedTripId()));
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
 
-  itineraryDays = computed(() => {
-    const trip = this.selectedTrip();
-    if (!trip) return [];
-    return this.mockData.getItineraryDays(trip.id);
-  });
+  readonly formatMoney = formatMoney;
+  readonly formatDate = formatDate;
 
-  activitiesByDay(dayId: string) {
-    return this.mockData.getItineraryItems(dayId);
+  ngOnInit(): void {
+    this.loadGroups();
+    this.loadTrips();
   }
 
-  tripName(tripId: string): string {
-    return this.trips().find(t => t.id === tripId)?.name || '';
+  loadTrips(): void {
+    this.tripsApi.list({
+      page: 1,
+      page_size: 100
+    }).subscribe({
+      next: page => {
+        this.trips.set(page.items);
+
+        if (
+          page.items.length > 0 &&
+          this.selectedTripId() === null
+        ) {
+          const tripId = page.items[0].id;
+
+          this.selectedTripId.set(tripId);
+          this.loadItinerary(tripId);
+        }
+      },
+
+      error: () => {
+        this.trips.set([]);
+        this.selectedTripId.set(null);
+        this.itineraryDays.set([]);
+        this.error.set(
+          'No se pudieron cargar los viajes.'
+        );
+      }
+    });
   }
 
-  groupName(groupId: string): string {
-    return this.groups().find(g => g.id === groupId)?.name || '';
+  loadGroups(): void {
+    this.groupsApi.list({
+      page: 1,
+      page_size: 100
+    }).subscribe({
+      next: page => {
+        this.groups.set(page.items);
+      },
+
+      error: () => {
+        this.groups.set([]);
+      }
+    });
   }
 
-  activityTypeIcon(type: string): string {
-    switch (type) {
-      case 'TRANSFER': return 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z';
-      case 'ACCOMMODATION': return 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z';
-      case 'MEAL': return 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6';
-      case 'TOUR': return 'M21 12a9 9 0 1 0-9-9 9 9 0 0 0 9 9zM12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41';
-      case 'LEISURE': return 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2';
-      default: return 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z';
+  loadItinerary(tripId: number): void {
+    this.loading.set(true);
+    this.error.set(null);
+
+    this.activitiesApi.list(
+      tripId,
+      {
+        page: 1,
+        page_size: 100
+      }
+    ).subscribe({
+      next: page => {
+        const daysMap = new Map<string, ActivityRead[]>();
+
+        for (const activity of page.items) {
+          if (!activity.activity_date) {
+            continue;
+          }
+
+          const date = activity.activity_date.split('T')[0];
+
+          const activities = daysMap.get(date) ?? [];
+
+          activities.push(activity);
+          daysMap.set(date, activities);
+        }
+
+        const sortedDates = Array.from(
+          daysMap.keys()
+        ).sort();
+
+        const days: ItineraryDay[] = sortedDates.map(
+          (date, index) => {
+            const activities = [
+              ...(daysMap.get(date) ?? [])
+            ].sort((a, b) => {
+              const timeA = a.start_time ?? '23:59';
+              const timeB = b.start_time ?? '23:59';
+
+              return timeA.localeCompare(timeB);
+            });
+
+            return {
+              date,
+              dayNumber: index + 1,
+              activities
+            };
+          }
+        );
+
+        this.itineraryDays.set(days);
+        this.loading.set(false);
+      },
+
+      error: (err: unknown) => {
+        this.itineraryDays.set([]);
+
+        if (err instanceof ApiError) {
+          this.error.set(err.message);
+        } else {
+          this.error.set(
+            'Error al cargar el itinerario.'
+          );
+        }
+
+        this.loading.set(false);
+      }
+    });
+  }
+
+  onTripSelect(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const value = select.value;
+
+    if (value === '') {
+      this.selectedTripId.set(null);
+      this.itineraryDays.set([]);
+      this.error.set(null);
+      return;
     }
-  }
 
-  activityTypeBadge(type: string): string {
-    switch (type) {
-      case 'TRANSFER': return 'badge-blue';
-      case 'ACCOMMODATION': return 'badge-purple';
-      case 'MEAL': return 'badge-orange';
-      case 'TOUR': return 'badge-green';
-      case 'LEISURE': return 'badge-pink';
-      default: return 'badge-gray';
+    const tripId = parseInt(value, 10);
+
+    if (isNaN(tripId)) {
+      this.selectedTripId.set(null);
+      this.itineraryDays.set([]);
+      return;
     }
+
+    this.selectedTripId.set(tripId);
+    this.loadItinerary(tripId);
   }
 
-  activityTypeLabel(type: string): string {
-    switch (type) {
-      case 'TRANSFER': return 'Traslado';
-      case 'ACCOMMODATION': return 'Alojamiento';
-      case 'MEAL': return 'Comida';
-      case 'TOUR': return 'Tour';
-      case 'LEISURE': return 'Ocio';
-      default: return 'Otro';
-    }
+  groupName(groupId: number): string {
+    return this.groups().find(
+      group => group.id === groupId
+    )?.name || 'Grupo';
   }
 
-  formatMoney(v: number): string {
-    if (!v) return 'Gratis';
-    return v.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+  activityLocation(location: string | null): string {
+    return location?.trim() || 'Ubicación no especificada';
+  }
+
+  activityDescription(description: string | null): string {
+    return description?.trim() || 'Sin descripción';
   }
 }

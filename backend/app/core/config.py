@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8",
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
 
     DB_HOST: str = "localhost"
     DB_PORT: int = Field(default=5432, ge=1, le=65535)
-    DB_NAME: str = "kiva"
+    DB_NAME: str = "kivadb"
     DB_USER: str = "kiva_user"
     DB_PASSWORD: SecretStr
 
@@ -74,8 +75,8 @@ class Settings(BaseSettings):
                 url.scheme not in {"http", "https"}
                 or not url.hostname
                 or "*" in origin
-                or url.username
-                or url.password
+                or url.username is not None
+                or url.password is not None
                 or url.path
                 or url.query
                 or url.fragment
@@ -84,7 +85,25 @@ class Settings(BaseSettings):
                     "Cada origen CORS debe tener esquema y host, sin ruta."
                 )
 
-        return origins
+            if url.port is not None and not 1 <= url.port <= 65535:
+                raise ValueError("El puerto del origen no es válido.")
+
+        return list(dict.fromkeys(origins))
+
+    @field_validator("ALLOWED_HOSTS")
+    @classmethod
+    def validate_hosts(cls, hosts: list[str]) -> list[str]:
+        if not hosts or any(
+            not host
+            or host != host.strip()
+            or any(char in host for char in "/:@?# ")
+            or ("*" in host and not host.startswith("*."))
+            or "*" in host[1:]
+            for host in hosts
+        ):
+            raise ValueError("Indica hosts válidos, sin esquema ni puerto.")
+
+        return list(dict.fromkeys(hosts))
 
     @model_validator(mode="after")
     def validate_environment(self):
@@ -100,8 +119,8 @@ class Settings(BaseSettings):
                     "En producción configura los orígenes HTTPS de Angular."
                 )
 
-            if not self.ALLOWED_HOSTS or any(
-                host in {"*", "localhost", "127.0.0.1", "testserver"}
+            if any(
+                host in {"localhost", "127.0.0.1", "testserver"}
                 for host in self.ALLOWED_HOSTS
             ):
                 raise ValueError(
@@ -113,6 +132,18 @@ class Settings(BaseSettings):
     @property
     def secure_cookies(self) -> bool:
         return self.APP_ENV == "production"
+
+    @property
+    def refresh_cookie_name(self) -> str:
+        return (
+            "__Secure-kiva_refresh"
+            if self.secure_cookies
+            else "kiva_refresh"
+        )
+
+    @property
+    def refresh_cookie_path(self) -> str:
+        return f"{self.API_PREFIX}/auth"
 
 
 @lru_cache

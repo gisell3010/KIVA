@@ -1,36 +1,52 @@
-import { Component, signal, inject, HostListener, ElementRef, computed } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
-import { AuthUser } from '../../../shared/models/domain.models';
 
 @Component({
   selector: 'app-profile-dropdown',
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div class="profile-dropdown" #dropdown>
+    <div class="profile-dropdown">
       <button
-        class="avatar avatar-sm profile-trigger"
-        (click)="toggle()"
-        [attr.aria-expanded]="isOpen()"
-        [attr.aria-label]="'Menú de usuario: ' + currentUser()?.displayName"
         type="button"
-        [style.background]="currentUser()?.avatarColor"
+        class="avatar avatar-sm profile-trigger"
+        style="background: var(--accent-blue)"
+        [attr.aria-expanded]="isOpen()"
+        [attr.aria-label]="'Menú de usuario: ' + (currentUser()?.full_name || 'Usuario')"
+        (click)="toggle()"
       >
-        {{ currentUser()?.initials }}
+        {{ userInitials() }}
       </button>
 
       @if (isOpen()) {
-        <div class="dropdown-panel" role="menu" (click)="$event.stopPropagation()">
+        <div
+          class="dropdown-panel"
+          role="menu"
+          (click)="$event.stopPropagation()"
+        >
           <div class="dropdown-user">
-            <div class="avatar avatar-md" [style.background]="currentUser()?.avatarColor">
-              {{ currentUser()?.initials }}
+            <div
+              class="avatar avatar-md"
+              style="background: var(--accent-blue)"
+            >
+              {{ userInitials() }}
             </div>
+
             <div class="user-info">
-              <div class="user-name">{{ currentUser()?.displayName }}</div>
-              <div class="user-email">{{ currentUser()?.email }}</div>
-              <span class="badge" [ngClass]="roleBadgeClass(currentUser()?.role)">
+              <div class="user-name">
+                {{ currentUser()?.full_name }}
+              </div>
+
+              <div class="user-email">
+                {{ currentUser()?.email }}
+              </div>
+
+              <span
+                class="badge"
+                [ngClass]="roleBadgeClass(currentUser()?.role)"
+              >
                 {{ roleLabel(currentUser()?.role) }}
               </span>
             </div>
@@ -38,67 +54,121 @@ import { AuthUser } from '../../../shared/models/domain.models';
 
           <div class="dropdown-divider"></div>
 
-          <a routerLink="/perfil" class="dropdown-item" role="menuitem" (click)="close()">
-            <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
+          <a
+            routerLink="/perfil"
+            class="dropdown-item"
+            role="menuitem"
+            (click)="close()"
+          >
+            <svg
+              class="ui-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              aria-hidden="true"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
             </svg>
+
             Mi perfil
           </a>
 
-          <a routerLink="/configuracion" class="dropdown-item" role="menuitem" (click)="close()">
-            <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+          <a
+            routerLink="/configuracion"
+            class="dropdown-item"
+            role="menuitem"
+            (click)="close()"
+          >
+            <svg
+              class="ui-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
             </svg>
+
             Configuración
           </a>
 
           @if (isSupport()) {
             <div class="dropdown-divider"></div>
-            <a routerLink="/soporte" class="dropdown-item support-item" role="menuitem" (click)="close()">
-              <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
-                <line x1="4" x2="4" y1="22" y2="15"/>
-              </svg>
+
+            <a
+              routerLink="/soporte"
+              class="dropdown-item support-item"
+              role="menuitem"
+              (click)="close()"
+            >
               Panel de soporte
             </a>
           }
 
           @if (isAdmin()) {
-            <a routerLink="/admin" class="dropdown-item admin-item" role="menuitem" (click)="close()">
-              <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"/>
-              </svg>
+            <a
+              routerLink="/admin"
+              class="dropdown-item admin-item"
+              role="menuitem"
+              (click)="close()"
+            >
               Panel de administración
-            </a>
-            <a routerLink="/dashboard" class="dropdown-item" role="menuitem" (click)="close()">
-              <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                <path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>
-                <path d="M9 22V12h6v10"/>
-              </svg>
-              Cambiar a espacio de usuario
             </a>
           }
 
           @if (isSuperAdmin()) {
-            <a routerLink="/super-admin" class="dropdown-item admin-item" role="menuitem" (click)="close()">
-              <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/>
-                <path d="m9 12 2 2 4-4"/>
-              </svg>
+            <a
+              routerLink="/super-admin"
+              class="dropdown-item admin-item"
+              role="menuitem"
+              (click)="close()"
+            >
               Super administración
+            </a>
+          }
+
+          @if (isAdmin()) {
+            <a
+              routerLink="/dashboard"
+              class="dropdown-item"
+              role="menuitem"
+              (click)="close()"
+            >
+              Cambiar a espacio de usuario
             </a>
           }
 
           <div class="dropdown-divider"></div>
 
-          <button class="dropdown-item danger" (click)="logout()" role="menuitem" type="button">
-            <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" x2="9" y1="12" y2="12"/>
+          <button
+            type="button"
+            class="dropdown-item danger"
+            role="menuitem"
+            (click)="logout()"
+          >
+            <svg
+              class="ui-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              aria-hidden="true"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" x2="9" y1="12" y2="12" />
             </svg>
+
             Cerrar sesión
           </button>
         </div>
@@ -136,19 +206,26 @@ import { AuthUser } from '../../../shared/models/domain.models';
       position: absolute;
       top: calc(100% + 8px);
       right: 0;
+      z-index: 100;
       width: 260px;
-      background: var(--bg-card);
+      overflow: hidden;
       border: 1px solid var(--border-soft);
       border-radius: var(--radius);
+      background: var(--bg-card);
       box-shadow: var(--shadow-glow);
-      overflow: hidden;
-      z-index: 100;
       animation: dropdownIn 0.15s ease;
     }
 
     @keyframes dropdownIn {
-      from { opacity: 0; transform: translateY(-8px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .dropdown-user {
@@ -164,49 +241,46 @@ import { AuthUser } from '../../../shared/models/domain.models';
     }
 
     .user-name {
+      overflow: hidden;
       font-size: 0.9rem;
       font-weight: 600;
-      color: var(--text-primary);
       white-space: nowrap;
-      overflow: hidden;
       text-overflow: ellipsis;
+      color: var(--text-primary);
     }
 
     .user-email {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis;
       margin-top: 2px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      color: var(--text-muted);
     }
 
     .dropdown-divider {
       height: 1px;
-      background: var(--border-soft);
       margin: 4px 0;
+      background: var(--border-soft);
     }
 
     .dropdown-item {
       display: flex;
       align-items: center;
       gap: 10px;
+      width: 100%;
       padding: 10px 16px;
+      border: none;
+      background: transparent;
       color: var(--text-primary);
       font-size: 0.85rem;
       font-weight: 500;
-      background: transparent;
-      border: none;
-      width: 100%;
       text-align: left;
       cursor: pointer;
       transition: background 0.15s ease;
     }
 
-    .dropdown-item:hover {
-      background: var(--bg-panel-2);
-    }
-
+    .dropdown-item:hover,
     .dropdown-item:focus-visible {
       outline: none;
       background: var(--bg-panel-2);
@@ -216,16 +290,8 @@ import { AuthUser } from '../../../shared/models/domain.models';
       color: var(--accent-purple);
     }
 
-    .admin-item:hover {
-      background: rgba(168, 85, 247, 0.1);
-    }
-
     .support-item {
       color: var(--accent-green);
-    }
-
-    .support-item:hover {
-      background: rgba(34, 197, 94, 0.1);
     }
 
     .danger {
@@ -238,24 +304,24 @@ import { AuthUser } from '../../../shared/models/domain.models';
 
     @media (max-width: 480px) {
       .dropdown-panel {
-        width: calc(100vw - 32px);
         right: -16px;
+        width: calc(100vw - 32px);
       }
     }
   `]
 })
 export class ProfileDropdownComponent {
-  private authService = inject(AuthService);
-  private elementRef = inject(ElementRef);
+  private readonly authService = inject(AuthService);
+  private readonly elementRef = inject(ElementRef);
 
-  isOpen = signal(false);
-  currentUser = this.authService.user;
-  isAdmin = this.authService.isAdmin;
-  isSupport = this.authService.isSupport;
-  isSuperAdmin = this.authService.isSuperAdmin;
+  readonly isOpen = signal(false);
+  readonly currentUser = this.authService.user;
+  readonly isAdmin = this.authService.isAdmin;
+  readonly isSupport = this.authService.isSupport;
+  readonly isSuperAdmin = this.authService.isSuperAdmin;
 
   toggle(): void {
-    this.isOpen.update(v => !v);
+    this.isOpen.update(value => !value);
   }
 
   close(): void {
@@ -263,13 +329,67 @@ export class ProfileDropdownComponent {
   }
 
   logout(): void {
-    this.authService.logout();
+    void this.authService.logout();
     this.close();
+  }
+
+  userInitials(): string {
+    const name = this.currentUser()?.full_name?.trim();
+
+    if (!name) {
+      return '?';
+    }
+
+    return name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0]?.toUpperCase())
+      .join('');
+  }
+
+  roleBadgeClass(role?: string): string {
+    switch (role) {
+      case 'SUPER_ADMIN':
+      case 'ADMIN':
+        return 'badge-purple';
+
+      case 'SUPPORT':
+        return 'badge-green';
+
+      case 'USER':
+        return 'badge-blue';
+
+      default:
+        return 'badge-gray';
+    }
+  }
+
+  roleLabel(role?: string): string {
+    switch (role) {
+      case 'SUPER_ADMIN':
+        return 'Super Administrador';
+
+      case 'ADMIN':
+        return 'Administrador';
+
+      case 'SUPPORT':
+        return 'Soporte';
+
+      case 'USER':
+        return 'Usuario';
+
+      default:
+        return 'Usuario';
+    }
   }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: Event): void {
-    if (this.isOpen() && !this.elementRef.nativeElement.contains(event.target)) {
+    if (
+      this.isOpen() &&
+      !this.elementRef.nativeElement.contains(event.target)
+    ) {
       this.close();
     }
   }
@@ -277,25 +397,5 @@ export class ProfileDropdownComponent {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.close();
-  }
-
-  roleBadgeClass(role?: string): string {
-    switch (role) {
-      case 'SUPER_ADMIN': return 'badge-purple';
-      case 'ADMIN': return 'badge-purple';
-      case 'SUPPORT': return 'badge-green';
-      case 'USER': return 'badge-blue';
-      default: return 'badge-gray';
-    }
-  }
-
-  roleLabel(role?: string): string {
-    switch (role) {
-      case 'SUPER_ADMIN': return 'Super Administrador';
-      case 'ADMIN': return 'Administrador';
-      case 'SUPPORT': return 'Soporte';
-      case 'USER': return 'Usuario';
-      default: return 'Usuario';
-    }
   }
 }

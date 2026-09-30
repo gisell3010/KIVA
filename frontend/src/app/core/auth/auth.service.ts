@@ -1,167 +1,381 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
-import { AuthUser, AuthState, GlobalRole, UUID, GLOBAL_ROLE_LABELS } from '../../shared/models/domain.models';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { firstValueFrom, timeout } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { AuthResponse, AuthSessionRead, RegisterRequest, UserRead } from '../../shared/models/domain.models';
+import { ApiError } from '../http/error.interceptor';
 
-const MOCK_USERS: AuthUser[] = [
-  {
-    id: '1' as UUID,
-    email: 'superadmin@kiva.app',
-    firstName: 'Super',
-    lastName: 'Admin',
-    displayName: 'Super Admin',
-    avatarColor: '#7c3aed',
-    initials: 'SA',
-    role: 'SUPER_ADMIN',
-    bio: 'Super administrador de la plataforma KIVA',
-  },
-  {
-    id: '2' as UUID,
-    email: 'admin@kiva.app',
-    firstName: 'Admin',
-    lastName: 'User',
-    displayName: 'Admin User',
-    avatarColor: '#a855f7',
-    initials: 'AU',
-    role: 'ADMIN',
-    bio: 'Administrador de la plataforma KIVA',
-  },
-  {
-    id: '3' as UUID,
-    email: 'soporte@kiva.app',
-    firstName: 'Soporte',
-    lastName: 'KIVA',
-    displayName: 'Soporte KIVA',
-    avatarColor: '#22c55e',
-    initials: 'SK',
-    role: 'SUPPORT',
-    bio: 'Equipo de soporte al usuario',
-  },
-  {
-    id: '4' as UUID,
-    email: 'camila@kiva.app',
-    firstName: 'Camila',
-    lastName: 'Rojas',
-    displayName: 'Camila Rojas',
-    avatarColor: '#3b82f6',
-    initials: 'CR',
-    role: 'USER',
-    bio: 'Amante de los viajes y la aventura',
-  },
-  {
-    id: '5' as UUID,
-    email: 'julian@kiva.app',
-    firstName: 'Julián',
-    lastName: 'Pérez',
-    displayName: 'Julián Pérez',
-    avatarColor: '#22c55e',
-    initials: 'JP',
-    role: 'USER',
-    bio: 'Fotógrafo de viajes',
-  },
-  {
-    id: '6' as UUID,
-    email: 'valentina@kiva.app',
-    firstName: 'Valentina',
-    lastName: 'Gómez',
-    displayName: 'Valentina Gómez',
-    avatarColor: '#a855f7',
-    initials: 'VG',
-    role: 'USER',
-    bio: 'Exploradora de destinos ocultos',
-  },
-  {
-    id: '7' as UUID,
-    email: 'andres@kiva.app',
-    firstName: 'Andrés',
-    lastName: 'Torres',
-    displayName: 'Andrés Torres',
-    avatarColor: '#f97316',
-    initials: 'AT',
-    role: 'USER',
-    bio: 'Mochoilero por el mundo',
-  },
-];
-
-const DEMO_USER_ID = '5';
-
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root'
+})
 export class AuthService {
-  private readonly _state = signal<AuthState>({
-    user: null,
-    isAuthenticated: false,
-    isLoading: true,
-  });
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
 
-  readonly state = this._state.asReadonly();
-  readonly user = computed(() => this._state().user);
-  readonly isAuthenticated = computed(() => this._state().isAuthenticated);
-  readonly isLoading = computed(() => this._state().isLoading);
-  readonly currentUserId = computed(() => this._state().user?.id ?? null);
+  private readonly currentUser = signal<UserRead | null>(null);
 
-  readonly isSuperAdmin = computed(() => this._state().user?.role === 'SUPER_ADMIN');
-  readonly isAdmin = computed(() => this._state().user?.role === 'ADMIN' || this._state().user?.role === 'SUPER_ADMIN');
-  readonly isSupport = computed(() => this._state().user?.role === 'SUPPORT' || this.isAdmin());
-  readonly isUser = computed(() => this._state().user?.role === 'USER');
+  private token: string | null = null;
+  private generation = 0;
+  private initialization?: Promise<void>;
+  private refreshing?: Promise<string>;
 
-  readonly canAccessAdminPanel = computed(() => this.isAdmin());
-  readonly canSupport = computed(() => this.isSupport());
+  private readonly channel =
+    typeof BroadcastChannel === 'undefined'
+      ? null
+      : new BroadcastChannel('kiva-session');
+
+  readonly user = this.currentUser.asReadonly();
+
+  readonly isLoading = signal(true);
+  readonly sessionError = signal<string | null>(null);
+
+  readonly isAuthenticated = computed(
+    () => this.user() !== null
+  );
+
+  readonly currentUserId = computed(
+    () => this.user()?.id ?? null
+  );
+
+  readonly isSuperAdmin = computed(
+    () => this.user()?.role === 'SUPER_ADMIN'
+  );
+
+  readonly isAdmin = computed(
+    () =>
+      this.isSuperAdmin() ||
+      this.user()?.role === 'ADMIN'
+  );
+
+  readonly isSupport = computed(
+    () =>
+      this.isAdmin() ||
+      this.user()?.role === 'SUPPORT'
+  );
 
   constructor() {
-    this.initialize();
-  }
+    if (this.channel) {
+      this.channel.onmessage = () => {
+        this.clearSession(false);
+      };
+    }
 
-  private initialize(): void {
-    setTimeout(() => {
-      const user = MOCK_USERS.find(u => u.id === DEMO_USER_ID);
-      if (user) {
-        this._state.set({ user, isAuthenticated: true, isLoading: false });
-      } else {
-        this._state.set({ user: null, isAuthenticated: false, isLoading: false });
-      }
-    }, 100);
-  }
-
-  login(email: string, password: string): Promise<AuthUser> {
-    return new Promise((resolve, reject) => {
-      this._state.update(s => ({ ...s, isLoading: true }));
-      setTimeout(() => {
-        const user = MOCK_USERS.find(u => u.email === email);
-        if (user && password === 'demo123') {
-          this._state.set({ user, isAuthenticated: true, isLoading: false });
-          resolve(user);
-        } else {
-          this._state.update(s => ({ ...s, isLoading: false }));
-          reject(new Error('Credenciales inválidas'));
-        }
-      }, 500);
+    inject(DestroyRef).onDestroy(() => {
+      this.channel?.close();
     });
   }
 
-  logout(): void {
-    this._state.set({ user: null, isAuthenticated: false, isLoading: false });
+  get accessToken(): string | null {
+    return this.token;
   }
 
-  setDemoUser(userId: string): void {
-    const user = MOCK_USERS.find(u => u.id === userId);
-    if (user) {
-      this._state.set({ user, isAuthenticated: true, isLoading: false });
+  get sessionVersion(): number {
+    return this.generation;
+  }
+
+  initialize(): Promise<void> {
+    return this.initialization ??= this.refreshAccessToken()
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        if (
+          !(
+            error instanceof ApiError &&
+            error.status === 401
+          )
+        ) {
+          this.sessionError.set(
+            error instanceof Error
+              ? error.message
+              : 'No se pudo comprobar la sesión.'
+          );
+        }
+      })
+      .finally(() => {
+        this.isLoading.set(false);
+      });
+  }
+
+  login(
+    email: string,
+    password: string
+  ): Promise<UserRead> {
+    return this.authenticate(
+      'login',
+      {
+        email,
+        password
+      }
+    );
+  }
+
+  register(
+    data: RegisterRequest
+  ): Promise<UserRead> {
+    return this.authenticate(
+      'register',
+      data
+    );
+  }
+
+  refreshAccessToken(): Promise<string> {
+    if (this.refreshing) {
+      return this.refreshing;
+    }
+
+    const version = this.generation;
+    const previousUserId = this.currentUserId();
+
+    const operation = this.locked(
+      async () => {
+        if (version !== this.generation) {
+          throw new ApiError(
+            'La sesión cambió.',
+            401,
+            'SESSION_CHANGED'
+          );
+        }
+
+        const response = await this.authRequest(
+          'refresh',
+          {}
+        );
+
+        if (
+          version !== this.generation ||
+          (
+            previousUserId !== null &&
+            response.user.id !== previousUserId
+          )
+        ) {
+          throw new ApiError(
+            'La sesión cambió.',
+            401,
+            'SESSION_CHANGED'
+          );
+        }
+
+        this.accept(response);
+
+        return response.access_token;
+      }
+    ).catch((error: unknown) => {
+      if (
+        version === this.generation &&
+        error instanceof ApiError &&
+        [401, 403].includes(error.status)
+      ) {
+        this.clearSession();
+      }
+
+      throw error;
+    });
+
+    this.refreshing = operation;
+
+    void operation
+      .finally(() => {
+        if (this.refreshing === operation) {
+          this.refreshing = undefined;
+        }
+      })
+      .catch(() => undefined);
+
+    return operation;
+  }
+
+  async logout(): Promise<void> {
+    await this.locked(() =>
+      firstValueFrom(
+        this.http
+          .post<void>(
+            `${environment.apiUrl}/auth/logout`,
+            {}
+          )
+          .pipe(timeout(15000))
+      )
+    );
+
+    this.clearSession();
+  }
+
+  async logoutAll(): Promise<void> {
+    await firstValueFrom(
+      this.http.post<void>(
+        `${environment.apiUrl}/auth/logout-all`,
+        {}
+      )
+    );
+
+    this.clearSession();
+  }
+
+  listSessions() {
+    return this.http.get<AuthSessionRead[]>(
+      `${environment.apiUrl}/auth/sessions`
+    );
+  }
+
+  async revokeSession(id: number): Promise<void> {
+    let currentId: number | null = null;
+
+    try {
+      const payload =
+        this.token?.split('.')[1];
+
+      if (payload) {
+        const normalized = payload
+          .replace(/-/g, '+')
+          .replace(/_/g, '/');
+
+        const padded = normalized.padEnd(
+          Math.ceil(normalized.length / 4) * 4,
+          '='
+        );
+
+        const decoded = atob(padded);
+        const parsed = JSON.parse(decoded);
+
+        currentId = Number(parsed.sid);
+      }
+    } catch {
+      currentId = null;
+    }
+
+    await firstValueFrom(
+      this.http.delete<void>(
+        `${environment.apiUrl}/auth/sessions/${id}`
+      )
+    );
+
+    if (id === currentId) {
+      this.clearSession();
     }
   }
 
-  getAvailableDemoUsers(): AuthUser[] {
-    return MOCK_USERS;
+  updateUser(user: UserRead): void {
+    if (
+      this.currentUserId() === user.id
+    ) {
+      this.currentUser.set(user);
+    }
   }
 
-  getRoleLabel(role: GlobalRole): string {
-    return GLOBAL_ROLE_LABELS[role] || role;
+  clearSession(
+    broadcast = true
+  ): void {
+    const hadUser =
+      this.isAuthenticated();
+
+    ++this.generation;
+
+    this.token = null;
+    this.currentUser.set(null);
+
+    if (broadcast) {
+      this.channel?.postMessage(
+        'changed'
+      );
+    }
+
+    if (hadUser) {
+      void this.router.navigate([
+        '/login'
+      ]);
+    }
   }
 
-  getRoleColor(role: GlobalRole): string {
-    const colors: Record<GlobalRole, string> = {
-      SUPER_ADMIN: '#7c3aed',
-      ADMIN: '#a855f7',
-      SUPPORT: '#22c55e',
-      USER: '#64748b',
-    };
-    return colors[role] || '#64748b';
+  private locked<T>(
+    operation: () => Promise<T>
+  ): Promise<T> {
+    if (!navigator.locks) {
+      return Promise.reject(
+        new Error(
+          'Abre KIVA en localhost o HTTPS con un navegador actualizado.'
+        )
+      );
+    }
+
+    return navigator.locks.request(
+      'kiva-auth-cookie',
+      operation
+    );
+  }
+
+  private authRequest(
+    path: string,
+    body: unknown
+  ): Promise<AuthResponse> {
+    return firstValueFrom(
+      this.http
+        .post<AuthResponse>(
+          `${environment.apiUrl}/auth/${path}`,
+          body
+        )
+        .pipe(timeout(15000))
+    );
+  }
+
+  private accept(
+    response: AuthResponse
+  ): void {
+    this.token =
+      response.access_token;
+
+    this.currentUser.set(
+      response.user
+    );
+
+    this.sessionError.set(null);
+  }
+
+  private async authenticate(
+    path: 'login' | 'register',
+    body: unknown
+  ): Promise<UserRead> {
+    this.isLoading.set(true);
+
+    const version =
+      ++this.generation;
+
+    try {
+      return await this.locked(
+        async () => {
+          if (
+            version !==
+            this.generation
+          ) {
+            throw new Error(
+              'La sesión cambió.'
+            );
+          }
+
+          const response =
+            await this.authRequest(
+              path,
+              body
+            );
+
+          if (
+            version !==
+            this.generation
+          ) {
+            throw new Error(
+              'La sesión cambió.'
+            );
+          }
+
+          this.accept(response);
+
+          this.channel?.postMessage(
+            'changed'
+          );
+
+          return response.user;
+        }
+      );
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 }

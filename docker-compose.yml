@@ -1,0 +1,101 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kiva-postgres
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kivadb}
+      POSTGRES_USER: ${POSTGRES_USER:-kiva_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/install.sql:/docker-entrypoint-initdb.d/00-install.sql:ro
+      - ./database/scripts:/docker-entrypoint-initdb.d/scripts:ro
+      - ./database/seeds:/docker-entrypoint-initdb.d/seeds:ro
+
+    ports:
+      - "5432:5432"
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-kiva_user} -d ${POSTGRES_DB:-kivadb}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - kiva-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: kiva-backend
+
+    environment:
+      APP_ENV: development
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-kivadb}
+      DB_USER: ${POSTGRES_USER:-kiva_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      JWT_SECRET: ${JWT_SECRET}
+
+      CORS_ORIGINS: '["http://localhost:4200","http://127.0.0.1:4200"]'
+      ALLOWED_HOSTS: '["localhost","127.0.0.1","backend"]'
+
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+      - backend_uploads:/app/uploads
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - kiva-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: kiva-frontend
+
+    environment:
+      NODE_ENV: development
+
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/dist
+
+    ports:
+      - "4200:4200"
+
+    depends_on:
+      - backend
+
+    networks:
+      - kiva-network
+
+volumes:
+  postgres_data:
+  backend_uploads:
+
+networks:
+  kiva-network:
+    driver: bridge

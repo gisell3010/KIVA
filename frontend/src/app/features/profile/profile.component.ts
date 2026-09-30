@@ -1,156 +1,371 @@
-import { Component, inject, signal, computed, effect } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
-import { MockDataService } from '../../data-access/mock/mock-data.service';
-import { User } from '../../shared/models/domain.models';
+import { UsersApiService } from '../../data-access/api/users-api.service';
+import { TripsApiService } from '../../data-access/api/trips-api.service';
+import { GroupsApiService } from '../../data-access/api/groups-api.service';
+import { AuthSessionRead } from '../../shared/models/domain.models';
+import { formatRelativeTime } from '../../shared/utils/date.utils';
+import { ApiError } from '../../core/http/error.interceptor';
+import { PrivateImageComponent } from '../../shared/components/private-image/private-image.component';
 
 interface ProfileFormData {
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  bio: string;
-}
-
-interface TravelPreferences {
-  tripType: string;
-  budgetRange: string;
-  duration: string;
-  accommodation: string;
+  full_name: string;
+  username: string;
 }
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    PrivateImageComponent
+  ],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css'
 })
-export class ProfileComponent {
-  private authService = inject(AuthService);
-  private mockData = inject(MockDataService);
+export class ProfileComponent implements OnInit {
+  private readonly authService = inject(AuthService);
+  private readonly usersApi = inject(UsersApiService);
+  private readonly tripsApi = inject(TripsApiService);
+  private readonly groupsApi = inject(GroupsApiService);
 
-  currentUser = this.authService.user;
-  saving = signal(false);
-  saveSuccess = signal(false);
+  readonly currentUser = this.authService.user;
 
-  formData = signal<ProfileFormData>({
-    firstName: '',
-    lastName: '',
-    displayName: '',
-    bio: '',
+  readonly sessions = signal<AuthSessionRead[]>([]);
+  readonly groupsCount = signal(0);
+  readonly tripsCount = signal(0);
+
+  readonly saving = signal(false);
+  readonly saveSuccess = signal(false);
+  readonly uploadingImage = signal(false);
+  readonly imageError = signal<string | null>(null);
+
+  readonly formData = signal<ProfileFormData>({
+    full_name: '',
+    username: ''
   });
 
-  travelPreferences = signal<TravelPreferences>({
-    tripType: 'mixto',
-    budgetRange: 'medio',
-    duration: 'semana',
-    accommodation: 'indiferente',
-  });
+  readonly formatRelativeTime = formatRelativeTime;
 
-  constructor() {
-    effect(() => {
-      const user = this.currentUser();
-      if (user) {
-        this.formData.set({
-          firstName: user.firstName,
-          lastName: user.lastName,
-          displayName: user.displayName,
-          bio: user.bio || '',
-        });
+  currentSessionId: number | null = null;
+
+  ngOnInit(): void {
+    this.loadProfile();
+    this.loadSessions();
+    this.loadCounts();
+  }
+
+  loadProfile(): void {
+    const user = this.currentUser();
+
+    if (!user) {
+      return;
+    }
+
+    this.formData.set({
+      full_name: user.full_name,
+      username: user.username
+    });
+
+    this.extractSessionId();
+  }
+
+  loadSessions(): void {
+    this.usersApi.listSessions().subscribe({
+      next: sessions => {
+        this.sessions.set(sessions);
+        this.extractSessionId();
+      },
+      error: () => {
+        this.sessions.set([]);
       }
     });
   }
 
-  groupsCount = computed(() => {
-    const user = this.currentUser();
-    if (!user) return 0;
-    return this.mockData.groupMembers().filter(m => m.userId === user.id).length;
-  });
+  loadCounts(): void {
+    if (!this.currentUser()) {
+      return;
+    }
 
-  tripsCount = computed(() => {
-    const user = this.currentUser();
-    if (!user) return 0;
-    return this.mockData.tripMembers().filter(m => m.userId === user.id).length;
-  });
+    this.groupsApi.list({
+      page: 1,
+      page_size: 1
+    }).subscribe({
+      next: page => {
+        this.groupsCount.set(page.total);
+      },
+      error: () => {
+        this.groupsCount.set(0);
+      }
+    });
 
-  expensesCount = computed(() => {
-    const user = this.currentUser();
-    if (!user) return 0;
-    return this.mockData.expenses().filter(e => e.paidById === user.id).length;
-  });
-
-  recentActivity = computed(() => [
-    { id: '1', title: 'Nuevo gasto registrado', description: 'Almuerzo regional - $85.000 COP', date: '2026-11-12T13:00:00Z', color: '#f97316', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' },
-    { id: '2', title: 'Votación completada', description: '¿Dónde alojarnos en El Chaltén?', date: '2026-09-25T23:59:00Z', color: '#a855f7', icon: 'M9 11l3 3L22 4' },
-    { id: '3', title: 'Viaje confirmado', description: 'Caribe Colombiano 2026', date: '2025-09-15T10:00:00Z', color: '#22c55e', icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z' },
-    { id: '4', title: 'Grupo creado', description: 'Amigos de la Universidad', date: '2025-08-01T10:00:00Z', color: '#3b82f6', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2' },
-  ]);
-
-  updateFormField(field: keyof ProfileFormData, value: string): void {
-    this.formData.update(d => ({ ...d, [field]: value }));
+    this.tripsApi.list({
+      page: 1,
+      page_size: 1
+    }).subscribe({
+      next: page => {
+        this.tripsCount.set(page.total);
+      },
+      error: () => {
+        this.tripsCount.set(0);
+      }
+    });
   }
 
-  updateTravelPref(field: keyof TravelPreferences, value: string): void {
-    this.travelPreferences.update(d => ({ ...d, [field]: value }));
+  updateFormField(
+    field: keyof ProfileFormData,
+    value: string
+  ): void {
+    this.formData.update(data => ({
+      ...data,
+      [field]: value
+    }));
   }
 
   saveProfile(): void {
+    const data = this.formData();
+
+    if (!data.full_name.trim() || !data.username.trim()) {
+      this.imageError.set(
+        'El nombre y el nombre de usuario son obligatorios.'
+      );
+      return;
+    }
+
     this.saving.set(true);
     this.saveSuccess.set(false);
+    this.imageError.set(null);
 
-    setTimeout(() => {
-      const user = this.currentUser();
-      if (user) {
-        console.log('Saving profile:', this.formData());
+    this.usersApi.updateMe({
+      full_name: data.full_name.trim(),
+      username: data.username.trim()
+    }).subscribe({
+      next: user => {
+        this.authService.updateUser(user);
+
+        this.formData.set({
+          full_name: user.full_name,
+          username: user.username
+        });
+
+        this.saving.set(false);
+        this.saveSuccess.set(true);
+
+        setTimeout(() => {
+          this.saveSuccess.set(false);
+        }, 3000);
+      },
+      error: error => {
+        this.saving.set(false);
+        this.imageError.set(
+          this.getErrorMessage(
+            error,
+            'Error al guardar el perfil.'
+          )
+        );
       }
-      this.saving.set(false);
-      this.saveSuccess.set(true);
-      setTimeout(() => this.saveSuccess.set(false), 3000);
-    }, 800);
+    });
   }
 
   resetForm(): void {
     const user = this.currentUser();
-    if (user) {
-      this.formData.set({
-        firstName: user.firstName,
-        lastName: user.lastName,
-        displayName: user.displayName,
-        bio: user.bio || '',
-      });
+
+    if (!user) {
+      return;
     }
+
+    this.formData.set({
+      full_name: user.full_name,
+      username: user.username
+    });
+
+    this.saveSuccess.set(false);
+    this.imageError.set(null);
   }
 
-  formatRelativeTime(isoString: string): string {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / 86400000);
+  onImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
 
-    if (diffDays === 0) return 'Hoy';
-    if (diffDays === 1) return 'Ayer';
-    if (diffDays < 7) return `Hace ${diffDays} días`;
-    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (!file) {
+      return;
+    }
+
+    this.uploadImage(file);
+
+    input.value = '';
+  }
+
+  uploadImage(file: File): void {
+    if (!file.type.startsWith('image/')) {
+      this.imageError.set(
+        'El archivo seleccionado debe ser una imagen.'
+      );
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.imageError.set(
+        'La imagen no puede superar los 5 MB.'
+      );
+      return;
+    }
+
+    this.uploadingImage.set(true);
+    this.imageError.set(null);
+
+    this.usersApi.uploadProfileImage(file).subscribe({
+      next: user => {
+        this.authService.updateUser(user);
+        this.uploadingImage.set(false);
+      },
+      error: error => {
+        this.uploadingImage.set(false);
+        this.imageError.set(
+          this.getErrorMessage(
+            error,
+            'Error al subir la imagen.'
+          )
+        );
+      }
+    });
+  }
+
+  deleteImage(): void {
+    this.imageError.set(null);
+
+    this.usersApi.deleteProfileImage().subscribe({
+      next: () => {
+        const user = this.currentUser();
+
+        if (!user) {
+          return;
+        }
+
+        this.authService.updateUser({
+          ...user,
+          profile_image: null
+        });
+      },
+      error: error => {
+        this.imageError.set(
+          this.getErrorMessage(
+            error,
+            'Error al eliminar la imagen.'
+          )
+        );
+      }
+    });
+  }
+
+  revokeSession(sessionId: number): void {
+    this.imageError.set(null);
+
+    this.usersApi.revokeSession(sessionId).subscribe({
+      next: () => {
+        this.sessions.update(sessions =>
+          sessions.filter(session => session.id !== sessionId)
+        );
+      },
+      error: error => {
+        this.imageError.set(
+          this.getErrorMessage(
+            error,
+            'Error al revocar la sesión.'
+          )
+        );
+      }
+    });
+  }
+
+  isCurrentSession(sessionId: number): boolean {
+    return sessionId === this.currentSessionId;
   }
 
   roleBadgeClass(role?: string): string {
     switch (role) {
-      case 'SUPER_ADMIN': return 'badge-purple';
-      case 'ADMIN': return 'badge-purple';
-      case 'SUPPORT': return 'badge-green';
-      case 'USER': return 'badge-blue';
-      default: return 'badge-gray';
+      case 'SUPER_ADMIN':
+      case 'ADMIN':
+        return 'badge-purple';
+
+      case 'SUPPORT':
+        return 'badge-green';
+
+      case 'USER':
+        return 'badge-blue';
+
+      default:
+        return 'badge-gray';
     }
   }
 
   roleLabel(role?: string): string {
     switch (role) {
-      case 'SUPER_ADMIN': return 'Super Administrador';
-      case 'ADMIN': return 'Administrador';
-      case 'SUPPORT': return 'Soporte';
-      case 'USER': return 'Usuario';
-      default: return 'Usuario';
+      case 'SUPER_ADMIN':
+        return 'Super Administrador';
+
+      case 'ADMIN':
+        return 'Administrador';
+
+      case 'SUPPORT':
+        return 'Soporte';
+
+      case 'USER':
+        return 'Usuario';
+
+      default:
+        return 'Usuario';
     }
+  }
+
+  private extractSessionId(): void {
+    const token = this.authService.accessToken;
+
+    if (!token) {
+      this.currentSessionId = null;
+      return;
+    }
+
+    try {
+      const payload = token.split('.')[1];
+
+      if (!payload) {
+        this.currentSessionId = null;
+        return;
+      }
+
+      const normalized = payload
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
+      const padded = normalized.padEnd(
+        Math.ceil(normalized.length / 4) * 4,
+        '='
+      );
+
+      const decoded = atob(padded);
+      const parsed = JSON.parse(decoded);
+      const sessionId = Number(parsed.sid);
+
+      this.currentSessionId = Number.isFinite(sessionId)
+        ? sessionId
+        : null;
+    } catch {
+      this.currentSessionId = null;
+    }
+  }
+
+  private getErrorMessage(
+    error: unknown,
+    fallback: string
+  ): string {
+    if (error instanceof ApiError) {
+      return error.message;
+    }
+
+    return fallback;
   }
 }

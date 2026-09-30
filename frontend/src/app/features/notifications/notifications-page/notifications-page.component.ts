@@ -1,87 +1,170 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
-import { NotificationService } from '../../notifications/notification.service';
-import { Notification, NotificationType } from '../../../shared/models/domain.models';
+import { UsersApiService } from '../../../data-access/api/users-api.service';
+import { NotificationRead, UnreadCount, Pagination } from '../../../shared/models/domain.models';
+import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
+import { formatRelativeTime } from '../../../shared/utils/date.utils';
 
 @Component({
   selector: 'app-notifications-page',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, PaginationComponent],
   templateUrl: './notifications-page.component.html',
   styleUrl: './notifications-page.component.css'
 })
-export class NotificationsPageComponent {
-  private notificationService = inject(NotificationService);
+export class NotificationsPageComponent implements OnInit {
+  private readonly usersApi = inject(UsersApiService);
+  readonly notifications = signal<NotificationRead[]>([]);
+  readonly unreadCount = signal<UnreadCount>({ total: 0 });
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly pagination = signal<Pagination>({page: 1, page_size: 20});
+  readonly totalNotifications = signal(0);
+  readonly totalPages = signal(0);
+  readonly formatRelativeTime = formatRelativeTime;
 
-  notifications = this.notificationService.notifications;
-  unreadCount = this.notificationService.unreadCount;
+  ngOnInit(): void {
+    this.loadNotifications();
+    this.loadUnreadCount();
+  }
 
-  filteredNotifications = computed(() => this.notifications());
+  loadNotifications(): void {
+    this.loading.set(true);
+    this.error.set(null);
 
-  markAsRead(id: string): void {
-    this.notificationService.markAsRead(id);
+    this.usersApi.listNotifications(this.pagination()).subscribe({
+      next: page => {
+        this.notifications.set(page.items);
+        this.totalNotifications.set(page.total);
+
+        this.totalPages.set(
+          Math.ceil(page.total / page.page_size)
+        );
+
+        this.loading.set(false);
+      },
+
+      error: () => {
+        this.notifications.set([]);
+        this.totalNotifications.set(0);
+        this.totalPages.set(0);
+
+        this.error.set(
+          'No se pudieron cargar las notificaciones.'
+        );
+
+        this.loading.set(false);
+      }
+    });
+  }
+
+  loadUnreadCount(): void {
+    this.usersApi.unreadCount().subscribe({
+      next: count => {
+        this.unreadCount.set(count);
+      },
+
+      error: () => {
+        this.unreadCount.set({ total: 0 });
+      }
+    });
+  }
+
+  markAsRead(id: number): void {
+    this.error.set(null);
+
+    this.usersApi.markAsRead(id).subscribe({
+      next: () => {
+        this.notifications.update(notifications =>
+          notifications.map(notification =>
+            notification.id === id
+              ? { ...notification, is_read: true }
+              : notification
+          )
+        );
+
+        this.loadUnreadCount();
+      },
+
+      error: () => {
+        this.error.set(
+          'No se pudo marcar la notificación como leída.'
+        );
+      }
+    });
   }
 
   markAllAsRead(): void {
-    this.notificationService.markAllAsRead();
+    this.error.set(null);
+
+    this.usersApi.markAllAsRead().subscribe({
+      next: () => {
+        this.notifications.update(notifications =>
+          notifications.map(notification => ({
+            ...notification,
+            is_read: true
+          }))
+        );
+
+        this.unreadCount.set({ total: 0 });
+      },
+
+      error: () => {
+        this.error.set(
+          'No se pudieron marcar las notificaciones como leídas.'
+        );
+      }
+    });
   }
 
-  deleteNotification(id: string): void {
-    this.notificationService.deleteNotification(id);
+  deleteNotification(id: number): void {
+    this.error.set(null);
+
+    this.usersApi.deleteNotification(id).subscribe({
+      next: () => {
+        this.notifications.update(notifications =>
+          notifications.filter(notification => notification.id !== id)
+        );
+
+        this.totalNotifications.update(total =>
+          Math.max(0, total - 1)
+        );
+
+        const pageSize = this.pagination().page_size || 20;
+
+        this.totalPages.set(
+          Math.ceil(this.totalNotifications() / pageSize)
+        );
+
+        this.loadUnreadCount();
+
+        if (
+          this.notifications().length === 0 &&
+          (this.pagination().page || 1) > 1
+        ) {
+          this.pagination.update(pagination => ({
+            ...pagination,
+            page: (pagination.page || 1) - 1
+          }));
+
+          this.loadNotifications();
+        }
+      },
+
+      error: () => {
+        this.error.set(
+          'No se pudo eliminar la notificación.'
+        );
+      }
+    });
   }
 
-  typeIconClass(type: NotificationType): string {
-    switch (type) {
-      case 'GROUP_INVITATION': return 'group';
-      case 'TRIP_INVITATION': return 'trip';
-      case 'TRIP_UPDATE': return 'trip';
-      case 'VOTE': return 'vote';
-      case 'EXPENSE': return 'expense';
-      case 'RESERVATION': return 'reservation';
-      case 'CALENDAR': return 'calendar';
-      case 'SYSTEM': return 'system';
-    }
-  }
+  onPageChange(page: number): void {
+    this.pagination.update(pagination => ({
+      ...pagination,
+      page
+    }));
 
-  typeIconPath(type: NotificationType): string {
-    switch (type) {
-      case 'GROUP_INVITATION': return 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2';
-      case 'TRIP_INVITATION': return 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z';
-      case 'TRIP_UPDATE': return 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z';
-      case 'VOTE': return 'M9 11l3 3L22 4';
-      case 'EXPENSE': return 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6';
-      case 'RESERVATION': return 'M2 9.5V7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2.5a2.5 2.5 0 0 0 0 5V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2.5a2.5 2.5 0 0 0 0-5Z';
-      case 'CALENDAR': return 'M8 2v4M16 2v4M3 10h18';
-      case 'SYSTEM': return 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2';
-    }
-  }
-
-  typeLabel(type: NotificationType): string {
-    switch (type) {
-      case 'GROUP_INVITATION': return 'Invitación a grupo';
-      case 'TRIP_INVITATION': return 'Invitación a viaje';
-      case 'TRIP_UPDATE': return 'Actualización de viaje';
-      case 'VOTE': return 'Votación';
-      case 'EXPENSE': return 'Gasto';
-      case 'RESERVATION': return 'Reserva';
-      case 'CALENDAR': return 'Calendario';
-      case 'SYSTEM': return 'Sistema';
-    }
-  }
-
-  formatRelativeTime(isoString: string): string {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Ahora mismo';
-    if (diffMins < 60) return `Hace ${diffMins} min`;
-    if (diffHours < 24) return `Hace ${diffHours} h`;
-    if (diffDays < 7) return `Hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
-    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    this.loadNotifications();
   }
 }

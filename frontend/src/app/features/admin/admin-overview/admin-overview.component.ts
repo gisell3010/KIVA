@@ -1,8 +1,8 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { MockDataService } from '../../../data-access/mock/mock-data.service';
-import { User, TripStatus } from '../../../shared/models/domain.models';
+import { AdminApiService } from '../../../data-access/api/admin-api.service';
+import { AdminDashboardRead, GlobalRole, TripStatus} from '../../../shared/models/domain.models';
 
 @Component({
   selector: 'app-admin-overview',
@@ -12,284 +12,601 @@ import { User, TripStatus } from '../../../shared/models/domain.models';
     <div class="admin-page">
       <div class="page-head">
         <div>
-          <h1 class="page-title">Visión General de la Plataforma</h1>
-          <p class="page-subtitle">Métricas agregadas y estado operativo</p>
+          <h1 class="page-title">
+            Visión general de la plataforma
+          </h1>
+          <p class="page-subtitle">
+            Métricas reales de KIVA
+          </p>
         </div>
-        <a routerLink="/admin" class="btn btn-outline">
-          <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
+        <a
+          routerLink="/admin"
+          class="btn btn-outline"
+        >
+          <svg
+            class="ui-icon"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            aria-hidden="true"
+          >
+            <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
+
           Volver al panel
         </a>
       </div>
 
-      <div class="overview-grid">
-        <section class="card overview-section">
-          <h2 class="overview-title">Distribución de Usuarios</h2>
-          <div class="distribution-chart">
-            <div class="dist-bar">
-              <div class="dist-label">
-                <span>Usuarios regulares</span>
-                <span class="dist-value">{{ regularUsers() }}</span>
-              </div>
-              <div class="dist-track">
-                <div class="dist-fill" [style.width.%]="regularUsersPercentage()" style="background: var(--accent-blue)"></div>
-              </div>
+
+      @if (loading()) {
+
+        <div class="card state-card">
+          <p>
+            Cargando métricas administrativas...
+          </p>
+        </div>
+
+      } @else if (error()) {
+
+        <div
+          class="card state-card error-text"
+          role="alert"
+        >
+          <p>
+            {{ error() }}
+          </p>
+
+          <button
+            type="button"
+            class="btn btn-outline"
+            (click)="loadDashboard()"
+          >
+            Reintentar
+          </button>
+        </div>
+
+      } @else if (dashboard()) {
+
+        <div class="kpi-grid">
+
+          <div class="card kpi-card">
+            <div class="kpi-value">
+              {{ dashboard()!.users_count }}
             </div>
-            <div class="dist-bar">
-              <div class="dist-label">
-                <span>Administradores</span>
-                <span class="dist-value">{{ adminUsers() }}</span>
-              </div>
-              <div class="dist-track">
-                <div class="dist-fill" [style.width.%]="adminUsersPercentage()" style="background: var(--accent-purple)"></div>
-              </div>
-            </div>
-            <div class="dist-bar">
-              <div class="dist-label">
-                <span>Soporte</span>
-                <span class="dist-value">{{ supportUsers() }}</span>
-              </div>
-              <div class="dist-track">
-                <div class="dist-fill" [style.width.%]="supportUsersPercentage()" style="background: var(--accent-green)"></div>
-              </div>
-            </div>
-            <div class="dist-bar">
-              <div class="dist-label">
-                <span>Usuarios activos (30d)</span>
-                <span class="dist-value">{{ activeUsers() }}</span>
-              </div>
-              <div class="dist-track">
-                <div class="dist-fill" [style.width.%]="activeUsersPercentage()" style="background: var(--accent-green)"></div>
-              </div>
-            </div>
-            <div class="dist-bar">
-              <div class="dist-label">
-                <span>Usuarios suspendidos</span>
-                <span class="dist-value">{{ suspendedUsers() }}</span>
-              </div>
-              <div class="dist-track">
-                <div class="dist-fill" [style.width.%]="suspendedUsersPercentage()" style="background: var(--accent-red)"></div>
-              </div>
+
+            <div class="kpi-label">
+              Usuarios
             </div>
           </div>
-        </section>
 
-        <section class="card overview-section">
-          <h2 class="overview-title">Estado de Viajes</h2>
-          <div class="trip-status-grid">
-            @for (status of tripStatuses(); track status.key) {
-              <div class="status-card" [style.border-left-color]="status.color">
-                <div class="status-header">
-                  <span class="status-dot" [style.background]="status.color"></span>
-                  <span class="status-label">{{ status.label }}</span>
+
+          <div class="card kpi-card">
+            <div class="kpi-value">
+              {{ dashboard()!.groups_count }}
+            </div>
+
+            <div class="kpi-label">
+              Grupos
+            </div>
+          </div>
+
+
+          <div class="card kpi-card">
+            <div class="kpi-value">
+              {{ dashboard()!.trips_count }}
+            </div>
+
+            <div class="kpi-label">
+              Viajes
+            </div>
+          </div>
+
+
+          <div class="card kpi-card">
+            <div class="kpi-value">
+              {{ dashboard()!.active_trips_count }}
+            </div>
+
+            <div class="kpi-label">
+              Viajes activos
+            </div>
+          </div>
+
+        </div>
+
+
+        <div class="overview-grid">
+
+          <section class="card overview-section">
+
+            <h2 class="overview-title">
+              Estado de usuarios
+            </h2>
+
+            <div class="status-summary">
+
+              <div class="summary-item">
+
+                <div class="summary-value good-text">
+                  {{ dashboard()!.active_users_count }}
                 </div>
-                <div class="status-count">{{ status.count }}</div>
-                <div class="status-percent">{{ status.percentage }}% del total</div>
-              </div>
-            }
-          </div>
-        </section>
 
-        <section class="card overview-section">
-          <h2 class="overview-title">Actividad por Tipo</h2>
-          <div class="activity-stats">
-            <div class="activity-item">
-              <div class="activity-icon" style="background: rgba(59,130,246,0.15); color: #60a5fa">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                </svg>
-              </div>
-              <div>
-                <div class="activity-count">{{ totalExpenses() }}</div>
-                <div class="activity-label">Gastos registrados</div>
-              </div>
-            </div>
-            <div class="activity-item">
-              <div class="activity-icon" style="background: rgba(34,211,238,0.15); color: #22d3ee">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <path d="M2 9.5V7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2.5a2.5 2.5 0 0 0 0 5V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2.5a2.5 2.5 0 0 0 0-5Z"/>
-                </svg>
-              </div>
-              <div>
-                <div class="activity-count">{{ totalReservations() }}</div>
-                <div class="activity-label">Reservas simuladas</div>
-              </div>
-            </div>
-            <div class="activity-item">
-              <div class="activity-icon" style="background: rgba(168,85,247,0.15); color: #c084fc">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7.5 12 2.5 2.5L15.5 9"/>
-                </svg>
-              </div>
-              <div>
-                <div class="activity-count">{{ totalPolls() }}</div>
-                <div class="activity-label">Votaciones creadas</div>
-              </div>
-            </div>
-            <div class="activity-item">
-              <div class="activity-icon" style="background: rgba(34,197,94,0.15); color: #4ade80">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>
-                </svg>
-              </div>
-              <div>
-                <div class="activity-count">{{ totalCalendarEvents() }}</div>
-                <div class="activity-label">Eventos en calendario</div>
-              </div>
-            </div>
-          </div>
-        </section>
+                <div class="summary-label">
+                  Activos
+                </div>
 
-        <section class="card overview-section full-width">
-          <h2 class="overview-title">Top Grupos por Actividad</h2>
-          <div class="table-container">
-            <table class="overview-table">
-              <thead>
-                <tr>
-                  <th>Grupo</th>
-                  <th>Propietario</th>
-                  <th>Miembros</th>
-                  <th>Viajes</th>
-                  <th>Gastos</th>
-                  <th>Volumen gastos</th>
-                  <th>Última actividad</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (group of topGroups(); track group.id) {
-                  <tr>
-                    <td>
-                      <div class="group-cell">
-                        <div class="group-color" [style.background]="group.colorTheme"></div>
-                        <span>{{ group.name }}</span>
-                      </div>
-                    </td>
-                    <td>{{ getUserName(group.ownerId) }}</td>
-                    <td class="text-center">{{ getMemberCount(group.id) }}</td>
-                    <td class="text-center">{{ getTripCount(group.id) }}</td>
-                    <td class="text-center">{{ getExpenseCount(group.id) }}</td>
-                    <td>{{ formatMoney(getExpenseVolume(group.id)) }}</td>
-                    <td>{{ getLastActivity(group.id) }}</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </section>
+              </div>
 
-        <section class="card overview-section full-width">
-          <h2 class="overview-title">Salud de la Plataforma</h2>
-          <div class="health-grid">
-            <div class="health-item good">
-              <div class="health-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <path d="M20 6 9 17l-5-5"/>
-                </svg>
+
+              <div class="summary-item">
+
+                <div class="summary-value danger-text">
+                  {{ dashboard()!.suspended_users_count }}
+                </div>
+
+                <div class="summary-label">
+                  Suspendidos
+                </div>
+
               </div>
-              <div>
-                <div class="health-title">API Respondiendo</div>
-                <div class="health-desc">Todos los endpoints operativos</div>
-              </div>
-              <span class="health-badge ok">OK</span>
+
             </div>
-            <div class="health-item good">
-              <div class="health-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"/>
-                </svg>
-              </div>
-              <div>
-                <div class="health-title">Base de Datos</div>
-                <div class="health-desc">Conexión estable, sin errores</div>
-              </div>
-              <span class="health-badge ok">OK</span>
+
+          </section>
+
+
+          <section class="card overview-section">
+
+            <h2 class="overview-title">
+              Usuarios por rol
+            </h2>
+
+            <div class="distribution-chart">
+
+              @for (
+                row of roleDistribution();
+                track row.role
+              ) {
+
+                <div class="dist-bar">
+
+                  <div class="dist-label">
+                    <span>
+                      {{ row.label }}
+                    </span>
+
+                    <span class="dist-value">
+                      {{ row.count }}
+                    </span>
+                  </div>
+
+
+                  <div class="dist-track">
+
+                    <div
+                      class="dist-fill"
+                      [style.width.%]="row.percentage"
+                      [style.background]="row.color"
+                    ></div>
+
+                  </div>
+
+                </div>
+
+              }
+
             </div>
-            <div class="health-item warning">
-              <div class="health-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <path d="M12 9v4M12 17h.01"/>
-                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                </svg>
-              </div>
-              <div>
-                <div class="health-title">Almacenamiento</div>
-                <div class="health-desc">78% de capacidad usada</div>
-              </div>
-              <span class="health-badge warn">Atención</span>
+
+          </section>
+
+
+          <section
+            class="card overview-section full-width"
+          >
+
+            <h2 class="overview-title">
+              Estado de viajes
+            </h2>
+
+            <div class="trip-status-grid">
+
+              @for (
+                status of tripStatuses();
+                track status.key
+              ) {
+
+                <div
+                  class="status-card"
+                  [style.border-left-color]="status.color"
+                >
+
+                  <div class="status-header">
+
+                    <span
+                      class="status-dot"
+                      [style.background]="status.color"
+                    ></span>
+
+                    <span class="status-label">
+                      {{ status.label }}
+                    </span>
+
+                  </div>
+
+
+                  <div class="status-count">
+                    {{ status.count }}
+                  </div>
+
+
+                  <div class="status-percent">
+                    {{ status.percentage }}% del total
+                  </div>
+
+                </div>
+
+              }
+
             </div>
-            <div class="health-item good">
-              <div class="health-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"/>
-                </svg>
+
+          </section>
+
+
+          <section
+            class="card overview-section full-width"
+          >
+
+            <h2 class="overview-title">
+              Actividad registrada
+            </h2>
+
+            <div class="activity-stats">
+
+              <div class="activity-item">
+
+                <div
+                  class="activity-icon"
+                  style="
+                    background: rgba(59,130,246,0.15);
+                    color: #60a5fa;
+                  "
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+                    />
+                  </svg>
+                </div>
+
+                <div>
+                  <div class="activity-count">
+                    {{ dashboard()!.expenses_count }}
+                  </div>
+
+                  <div class="activity-label">
+                    Gastos registrados
+                  </div>
+                </div>
+
               </div>
-              <div>
-                <div class="health-title">Autenticación</div>
-                <div class="health-desc">JWT funcionando correctamente</div>
+
+
+              <div class="activity-item">
+
+                <div
+                  class="activity-icon"
+                  style="
+                    background: rgba(34,211,238,0.15);
+                    color: #22d3ee;
+                  "
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M2 9.5V7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2.5a2.5 2.5 0 0 0 0 5V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2.5a2.5 2.5 0 0 0 0-5Z"
+                    />
+                  </svg>
+                </div>
+
+                <div>
+                  <div class="activity-count">
+                    {{ dashboard()!.reservations_count }}
+                  </div>
+
+                  <div class="activity-label">
+                    Reservas registradas
+                  </div>
+                </div>
+
               </div>
-              <span class="health-badge ok">OK</span>
+
+
+              <div class="activity-item">
+
+                <div
+                  class="activity-icon"
+                  style="
+                    background: rgba(168,85,247,0.15);
+                    color: #c084fc;
+                  "
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    aria-hidden="true"
+                  >
+                    <rect
+                      x="3"
+                      y="4"
+                      width="18"
+                      height="16"
+                      rx="2"
+                    />
+
+                    <path
+                      d="m7.5 12 2.5 2.5L15.5 9"
+                    />
+                  </svg>
+                </div>
+
+                <div>
+                  <div class="activity-count">
+                    {{ dashboard()!.polls_count }}
+                  </div>
+
+                  <div class="activity-label">
+                    Votaciones creadas
+                  </div>
+                </div>
+
+              </div>
+
+
+              <div class="activity-item">
+
+                <div
+                  class="activity-icon"
+                  style="
+                    background: rgba(34,197,94,0.15);
+                    color: #4ade80;
+                  "
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    aria-hidden="true"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="9"
+                    />
+
+                    <path
+                      d="M12 7v5l3 2"
+                    />
+                  </svg>
+                </div>
+
+                <div>
+                  <div class="activity-count">
+                    {{ dashboard()!.open_polls_count }}
+                  </div>
+
+                  <div class="activity-label">
+                    Votaciones abiertas
+                  </div>
+                </div>
+
+              </div>
+
             </div>
-          </div>
-        </section>
-      </div>
+
+          </section>
+
+
+          <section
+            class="card overview-section full-width"
+          >
+
+            <h2 class="overview-title">
+              Volumen de gastos
+            </h2>
+
+            <div class="expense-total">
+
+              <div class="expense-value">
+                {{
+                  formatCurrency(
+                    dashboard()!.total_expenses
+                  )
+                }}
+              </div>
+
+              <div class="expense-label">
+                Total registrado en
+                {{ dashboard()!.currency }}
+              </div>
+
+            </div>
+
+          </section>
+
+        </div>
+
+      }
+
     </div>
   `,
+
   styles: [`
-    .admin-page { max-width: 1200px; }
+    .admin-page {
+      max-width: 1200px;
+    }
+
+    .state-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      min-width: 0;
+    }
+
+    .kpi-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .kpi-label {
+      margin-top: 4px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
 
     .overview-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
       gap: 20px;
     }
 
-    .full-width { grid-column: 1 / -1; }
-
-    .overview-section { display: flex; flex-direction: column; gap: 16px; }
-
-    .overview-title {
-      font-size: 1rem;
-      font-weight: 700;
-      margin: 0;
+    .full-width {
+      grid-column: 1 / -1;
     }
 
-    .distribution-chart { display: flex; flex-direction: column; gap: 16px; }
+    .overview-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
 
-    .dist-bar { display: flex; flex-direction: column; gap: 6px; }
+    .overview-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .status-summary {
+      display: grid;
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .summary-item {
+      padding: 18px;
+      border-radius: 10px;
+      background: var(--bg-panel-2);
+      text-align: center;
+    }
+
+    .summary-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+    }
+
+    .summary-label {
+      margin-top: 4px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .good-text {
+      color: #4ade80;
+    }
+
+    .danger-text {
+      color: #f87171;
+    }
+
+    .distribution-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .dist-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
 
     .dist-label {
       display: flex;
       justify-content: space-between;
+      gap: 12px;
       font-size: 0.8rem;
     }
 
-    .dist-value { font-weight: 700; color: var(--text-primary); }
+    .dist-value {
+      font-weight: 700;
+      color: var(--text-primary);
+    }
 
     .dist-track {
       height: 8px;
-      background: var(--bg-panel-2);
-      border-radius: 999px;
       overflow: hidden;
+      border-radius: 999px;
+      background: var(--bg-panel-2);
     }
 
     .dist-fill {
       height: 100%;
       border-radius: 999px;
-      transition: width var(--transition-normal);
+      transition:
+        width var(--transition-normal);
     }
 
     .trip-status-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-columns:
+        repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
 
     .status-card {
       padding: 16px;
-      background: var(--bg-panel-2);
       border-radius: 10px;
       border-left: 4px solid;
+      background: var(--bg-panel-2);
       text-align: center;
     }
 
@@ -298,20 +615,34 @@ import { User, TripStatus } from '../../../shared/models/domain.models';
       align-items: center;
       justify-content: center;
       gap: 6px;
+      margin-bottom: 8px;
       font-size: 0.75rem;
       font-weight: 600;
       color: var(--text-secondary);
-      margin-bottom: 8px;
     }
 
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
 
-    .status-count { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
-    .status-percent { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
+    .status-count {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .status-percent {
+      margin-top: 4px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
 
     .activity-stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns:
+        repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -320,196 +651,279 @@ import { User, TripStatus } from '../../../shared/models/domain.models';
       align-items: center;
       gap: 12px;
       padding: 16px;
-      background: var(--bg-panel-2);
       border-radius: 10px;
+      background: var(--bg-panel-2);
     }
 
     .activity-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 44px;
+      height: 44px;
       flex-shrink: 0;
+      border-radius: 12px;
     }
 
-    .activity-count { font-size: 1.25rem; font-weight: 800; color: var(--text-primary); }
-    .activity-label { font-size: 0.75rem; color: var(--text-muted); }
-
-    .table-container { overflow-x: auto; }
-
-    .overview-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.8rem;
+    .activity-count {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text-primary);
     }
 
-    .overview-table th {
-      text-align: left;
+    .activity-label {
+      font-size: 0.75rem;
       color: var(--text-muted);
-      font-weight: 600;
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      padding: 10px;
-      border-bottom: 1px solid var(--border-soft);
     }
 
-    .overview-table td {
-      padding: 12px 10px;
-      border-bottom: 1px solid var(--border-soft);
-      color: var(--text-secondary);
-    }
-
-    .group-cell { display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--text-primary); }
-    .group-color { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
-    .health-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 16px;
-    }
-
-    .health-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 14px;
-      padding: 16px;
-      background: var(--bg-panel-2);
+    .expense-total {
+      padding: 20px;
       border-radius: 10px;
+      background: var(--bg-panel-2);
     }
 
-    .health-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      background: rgba(34, 197, 94, 0.15);
-      color: #4ade80;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+    .expense-value {
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: var(--text-primary);
     }
 
-    .health-item.warning .health-icon {
-      background: rgba(249, 115, 22, 0.15);
-      color: #fb923c;
-    }
-
-    .health-title { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); }
-    .health-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
-
-    .health-badge {
-      font-size: 0.65rem;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 999px;
-      flex-shrink: 0;
+    .expense-label {
       margin-top: 4px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
     }
 
-    .health-badge.ok { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-    .health-badge.warn { background: rgba(249, 115, 22, 0.15); color: #fb923c; }
+    .error-text {
+      color: var(--accent-red);
+    }
+
+    @media (max-width: 900px) {
+      .kpi-grid,
+      .trip-status-grid,
+      .activity-stats {
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+      }
+    }
 
     @media (max-width: 700px) {
-      .overview-grid { grid-template-columns: 1fr; }
+      .overview-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .full-width {
+        grid-column: auto;
+      }
+
+      .state-card {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
-  `]
+
+    @media (max-width: 520px) {
+      .kpi-grid,
+      .trip-status-grid,
+      .activity-stats,
+      .status-summary {
+        grid-template-columns: 1fr;
+      }
+    }
+  `],
 })
-export class AdminOverviewComponent {
-  private mockData = inject(MockDataService);
+export class AdminOverviewComponent
+  implements OnInit
+{
+  private readonly adminApi =
+    inject(AdminApiService);
 
-  totalUsers = computed(() => this.mockData.users().length);
-  adminUsers = computed(() => this.mockData.users().filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length);
-  supportUsers = computed(() => this.mockData.users().filter(u => u.role === 'SUPPORT').length);
-  regularUsers = computed(() => this.mockData.users().filter(u => u.role === 'USER').length);
-  activeUsers = computed(() => this.mockData.users().filter(u => u.id !== '9').length);
-  suspendedUsers = computed(() => this.mockData.users().filter(u => u.id === '9').length);
+  readonly dashboard =
+    signal<AdminDashboardRead | null>(
+      null
+    );
 
-  regularUsersPercentage = computed(() => (this.regularUsers() / this.totalUsers()) * 100);
-  adminUsersPercentage = computed(() => (this.adminUsers() / this.totalUsers()) * 100);
-  supportUsersPercentage = computed(() => (this.supportUsers() / this.totalUsers()) * 100);
-  activeUsersPercentage = computed(() => (this.activeUsers() / this.totalUsers()) * 100);
-  suspendedUsersPercentage = computed(() => (this.suspendedUsers() / this.totalUsers()) * 100);
+  readonly loading =
+    signal(true);
 
-  tripStatuses = computed(() => {
-    const trips = this.mockData.trips();
-    const total = trips.length;
-    const statuses: { key: TripStatus; label: string; color: string }[] = [
-      { key: 'PLANNING', label: 'Planificando', color: '#f97316' },
-      { key: 'CONFIRMED', label: 'Confirmado', color: '#3b82f6' },
-      { key: 'IN_PROGRESS', label: 'En curso', color: '#22c55e' },
-      { key: 'COMPLETED', label: 'Finalizado', color: '#94a3b8' },
-    ];
+  readonly error =
+    signal<string | null>(null);
 
-    return statuses.map(s => ({
-      ...s,
-      count: trips.filter(t => t.status === s.key).length,
-      percentage: total > 0 ? Math.round((trips.filter(t => t.status === s.key).length / total) * 100) : 0,
-    }));
-  });
 
-  totalExpenses = computed(() => this.mockData.expenses().length);
-  totalReservations = computed(() => this.mockData.reservations().length);
-  totalPolls = computed(() => this.mockData.polls().length);
-  totalCalendarEvents = computed(() => this.mockData.calendarEvents().length);
+  readonly roleDistribution =
+    computed(() => {
+      const data = this.dashboard();
 
-  topGroups = computed(() => {
-    return [...this.mockData.groups()].sort((a, b) => {
-      const aExpenses = this.getExpenseCount(a.id);
-      const bExpenses = this.getExpenseCount(b.id);
-      return bExpenses - aExpenses;
-    }).slice(0, 10);
-  });
+      const total =
+        data?.users_count ?? 0;
 
-  getUserName(userId: string): string {
-    return this.mockData.getUser(userId as any)?.displayName || 'Desconocido';
+      const byRole =
+        data?.users_by_role;
+
+      const roles: Array<{
+        role: GlobalRole;
+        label: string;
+        color: string;
+      }> = [
+        {
+          role: 'SUPER_ADMIN',
+          label: 'Super administradores',
+          color: '#7c3aed',
+        },
+        {
+          role: 'ADMIN',
+          label: 'Administradores',
+          color: '#a855f7',
+        },
+        {
+          role: 'SUPPORT',
+          label: 'Soporte',
+          color: '#22c55e',
+        },
+        {
+          role: 'USER',
+          label: 'Usuarios',
+          color: '#3b82f6',
+        },
+      ];
+
+      return roles.map(
+        item => {
+          const count =
+            byRole?.[item.role] ?? 0;
+
+          return {
+            ...item,
+
+            count,
+
+            percentage:
+              total > 0
+                ? Math.round(
+                    (count / total)
+                    * 100
+                  )
+                : 0,
+          };
+        }
+      );
+    });
+
+
+  readonly tripStatuses =
+    computed(() => {
+      const data = this.dashboard();
+
+      const total =
+        data?.trips_count ?? 0;
+
+      const byStatus =
+        data?.trips_by_status;
+
+      const statuses: Array<{
+        key: TripStatus;
+        label: string;
+        color: string;
+      }> = [
+        {
+          key: 'PLANNING',
+          label: 'Planificando',
+          color: '#f97316',
+        },
+        {
+          key: 'CONFIRMED',
+          label: 'Confirmado',
+          color: '#3b82f6',
+        },
+        {
+          key: 'COMPLETED',
+          label: 'Finalizado',
+          color: '#94a3b8',
+        },
+        {
+          key: 'CANCELLED',
+          label: 'Cancelado',
+          color: '#ef4444',
+        },
+      ];
+
+      return statuses.map(
+        item => {
+          const count =
+            byStatus?.[item.key] ?? 0;
+
+          return {
+            ...item,
+
+            count,
+
+            percentage:
+              total > 0
+                ? Math.round(
+                    (count / total)
+                    * 100
+                  )
+                : 0,
+          };
+        }
+      );
+    });
+
+
+  ngOnInit(): void {
+    this.loadDashboard();
   }
 
-  getMemberCount(groupId: string): number {
-    return this.mockData.getGroupMembers(groupId as any).length;
+
+  loadDashboard(): void {
+    this.loading.set(true);
+    this.error.set(null);
+
+    this.adminApi
+      .dashboard()
+      .subscribe({
+
+        next: data => {
+          this.dashboard.set(
+            data
+          );
+
+          this.loading.set(false);
+        },
+
+        error: () => {
+          this.dashboard.set(
+            null
+          );
+
+          this.error.set(
+            'No se pudieron cargar las métricas administrativas.'
+          );
+
+          this.loading.set(false);
+        },
+
+      });
   }
 
-  getTripCount(groupId: string): number {
-    return this.mockData.trips().filter(t => t.groupId === groupId).length;
-  }
 
-  getExpenseCount(groupId: string): number {
-    const trips = this.mockData.trips().filter(t => t.groupId === groupId);
-    const tripIds = trips.map(t => t.id);
-    return this.mockData.expenses().filter(e => tripIds.includes(e.tripId)).length;
-  }
+  formatCurrency(
+    value: string | number
+  ): string {
+    const amount =
+      Number(value);
 
-  getExpenseVolume(groupId: string): number {
-    const trips = this.mockData.trips().filter(t => t.groupId === groupId);
-    const tripIds = trips.map(t => t.id);
-    return this.mockData.expenses().filter(e => tripIds.includes(e.tripId)).reduce((sum, e) => sum + e.amount, 0);
-  }
-
-  getLastActivity(groupId: string): string {
-    const trips = this.mockData.trips().filter(t => t.groupId === groupId);
-    const tripIds = trips.map(t => t.id);
-    const expenses = this.mockData.expenses().filter(e => tripIds.includes(e.tripId));
-    if (expenses.length === 0) return 'Sin actividad';
-    const latest = expenses.reduce((max, e) => e.createdAt > max.createdAt ? e : max);
-    return this.formatRelativeTime(latest.createdAt);
-  }
-
-  formatMoney(v: number): string {
-    return v.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-  }
-
-  formatRelativeTime(isoString: string): string {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffDays === 0) return 'Hoy';
-    if (diffDays === 1) return 'Ayer';
-    if (diffDays < 7) return `Hace ${diffDays} días`;
-    if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} sem`;
-    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    return (
+      Number.isFinite(amount)
+        ? amount
+        : 0
+    ).toLocaleString(
+      'es-CO',
+      {
+        style: 'currency',
+        currency: 'COP',
+        maximumFractionDigits: 0,
+      }
+    );
   }
 }
