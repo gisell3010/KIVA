@@ -17,7 +17,7 @@ export class ThemeService {
       const theme = this.currentTheme();
       this.applyTheme(theme);
       this.persistTheme(theme);
-    });
+    }, { allowSignalWrites: true });
   }
 
   private loadInitialTheme(): ThemeMode {

@@ -40,25 +40,13 @@
   .login-brand { display: flex; }
 }
 
-.login-brand .brand-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 20px;
-}
-
-.login-brand h1 {
-  font-size: 2.5rem;
-  font-weight: 800;
-  margin: 0 0 8px;
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.kiva-brand-logo {
+  display: block;
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 18px;
+  object-fit: contain;
 }
 
 .brand-subtitle {
@@ -259,14 +247,3 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
-
-.login-illustration {
-  display: none;
-  position: relative;
-}
-
-@media (min-width: 769px) {
-  .login-illustration { display: block; }
-}
-
-.login-illustration svg { width: 100%; height: 100%; }

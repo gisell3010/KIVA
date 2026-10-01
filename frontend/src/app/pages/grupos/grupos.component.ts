@@ -1,83 +1,149 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MockDataService } from '../../data-access/mock/mock-data.service';
+import { GroupsApiService } from '../../data-access/api/groups-api.service';
+import { TripsApiService } from '../../data-access/api/trips-api.service';
 import { AuthService } from '../../core/auth/auth.service';
-import { Group } from '../../shared/models/domain.models';
+import { GroupRead, GroupMemberRead, GroupCreate } from '../../shared/models/domain.models';
+import { formatDate } from '../../shared/utils/date.utils';
+import { PrivateImageComponent } from '../../shared/components/private-image/private-image.component';
+import { ApiError } from '../../core/http/error.interceptor';
 
 @Component({
   selector: 'app-grupos',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, PrivateImageComponent],
   templateUrl: './grupos.component.html',
   styleUrl: './grupos.component.css'
 })
-export class GruposComponent {
-  private mockData = inject(MockDataService);
+export class GruposComponent implements OnInit {
+  private groupsApi = inject(GroupsApiService);
+  private tripsApi = inject(TripsApiService);
   private authService = inject(AuthService);
 
-  groups = this.mockData.groups;
-  currentUser = this.authService.user;
+  groups = signal<GroupRead[]>([]);
+  userGroups = signal<GroupRead[]>([]);
+  otherGroups = signal<GroupRead[]>([]);
+  loading = signal(false);
+  error = signal<string | null>(null);
 
   showModal = signal(false);
   newName = signal('');
   newDescription = signal('');
 
-  userGroups = computed(() => {
-    const user = this.currentUser();
-    if (!user) return [];
-    const memberGroupIds = this.mockData.groupMembers()
-      .filter(m => m.userId === user.id)
-      .map(m => m.groupId);
-    return this.groups().filter(g => memberGroupIds.includes(g.id));
-  });
+  groupMembersCache = new Map<number, GroupMemberRead[]>();
+  groupTripsCache = new Map<number, number>();
 
-  otherGroups = computed(() => {
-    const user = this.currentUser();
-    if (!user) return this.groups();
-    const memberGroupIds = this.mockData.groupMembers()
-      .filter(m => m.userId === user.id)
-      .map(m => m.groupId);
-    return this.groups().filter(g => !memberGroupIds.includes(g.id));
-  });
+  currentUser = this.authService.user;
 
-  userGroupTripCounts = computed(() => {
-    const trips = this.mockData.trips();
-    const counts = new Map<string, number>();
-    for (const trip of trips) {
-      counts.set(trip.groupId, (counts.get(trip.groupId) || 0) + 1);
+  ngOnInit(): void {
+    this.loadGroups();
+  }
+
+  loadGroups(): void {
+    this.loading.set(true);
+    this.error.set(null);
+
+    this.groupsApi.list({ page: 1, page_size: 100 }).subscribe({
+      next: (page) => {
+        this.groups.set(page.items);
+        this.splitGroups();
+        this.loading.set(false);
+      },
+      error: (err) => {
+        if (err instanceof ApiError) {
+          this.error.set(err.message);
+        } else {
+          this.error.set('Error al cargar los grupos');
+        }
+        this.loading.set(false);
+      },
+    });
+  }
+
+  splitGroups(): void {
+    const user = this.currentUser();
+    if (!user) {
+      this.userGroups.set([]);
+      this.otherGroups.set(this.groups());
+      return;
     }
-    return counts;
-  });
 
-  getMemberCount(groupId: string): number {
-    return this.mockData.getGroupMembers(groupId).length;
+    this.groupsApi.list({ page: 1, page_size: 100 }).subscribe({
+      next: (page) => {
+        const allGroups = page.items;
+        const memberGroupIds = new Set<number>();
+
+        for (const group of allGroups) {
+          if (group.my_role) {
+            memberGroupIds.add(group.id);
+          }
+        }
+
+        this.userGroups.set(allGroups.filter(g => memberGroupIds.has(g.id)));
+        this.otherGroups.set(allGroups.filter(g => !memberGroupIds.has(g.id)));
+
+        for (const group of allGroups) {
+          this.loadGroupDetails(group.id);
+        }
+      },
+      error: () => {
+        this.userGroups.set([]);
+        this.otherGroups.set(this.groups());
+      },
+    });
   }
 
-  getTripCount(groupId: string): number {
-    return this.userGroupTripCounts().get(groupId) || 0;
+  loadGroupDetails(groupId: number): void {
+    this.groupsApi.members(groupId, { page: 1, page_size: 100 }).subscribe({
+      next: (page) => {
+        this.groupMembersCache.set(groupId, page.items);
+      },
+    });
+
+    this.tripsApi.list({ group_id: groupId, page: 1, page_size: 1 }).subscribe({
+      next: (page) => {
+        this.groupTripsCache.set(groupId, page.total);
+      },
+    });
   }
 
-  getUserRole(groupId: string): string | null {
+  getMemberCount(groupId: number): number {
+    return this.groupMembersCache.get(groupId)?.length || 0;
+  }
+
+  getTripCount(groupId: number): number {
+    return this.groupTripsCache.get(groupId) || 0;
+  }
+
+  getGroupMembers(groupId: number): GroupMemberRead[] {
+    return this.groupMembersCache.get(groupId) || [];
+  }
+
+  getUserRole(groupId: number): string | null {
     const user = this.currentUser();
     if (!user) return null;
-    const member = this.mockData.getGroupMembers(groupId).find(m => m.userId === user.id);
+    const members = this.groupMembersCache.get(groupId);
+    if (!members) return null;
+    const member = members.find(m => m.user_id === user.id);
     return member?.role || null;
-  }
-
-  getGroupMembers(groupId: string) {
-    return this.mockData.getGroupMembers(groupId);
-  }
-
-  getUser(userId: string) {
-    return this.mockData.getUser(userId);
   }
 
   statusBadge(status: string): string {
     switch (status) {
-      case 'PLANNING': return 'badge-orange';
-      case 'CONFIRMED': return 'badge-blue';
-      case 'IN_PROGRESS': return 'badge-green';
-      default: return 'badge-gray';
+      case 'PLANNING':
+        return 'badge-orange';
+
+      case 'CONFIRMED':
+        return 'badge-blue';
+
+      case 'COMPLETED':
+        return 'badge-green';
+
+      case 'CANCELLED':
+        return 'badge-red';
+
+      default:
+        return 'badge-gray';
     }
   }
 
@@ -97,9 +163,7 @@ export class GruposComponent {
     }
   }
 
-  formatMoney(v: number): string {
-    return v.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-  }
+  formatDate = formatDate;
 
   openModal(): void {
     this.showModal.set(true);
@@ -113,17 +177,25 @@ export class GruposComponent {
 
   createGroup(): void {
     if (!this.newName().trim()) return;
-    const colors = ['#3b82f6', '#22c55e', '#a855f7', '#f97316', '#ec4899', '#06b6d4'];
-    const newGroup: Group = {
-      id: crypto.randomUUID(),
-      name: this.newName(),
-      description: this.newDescription() || 'Nuevo grupo de viaje creado en KIVA.',
-      ownerId: this.currentUser()?.id || '1',
-      colorTheme: colors[Math.floor(Math.random() * colors.length)],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+
+    const data: GroupCreate = {
+      name: this.newName().trim(),
+      description: this.newDescription().trim() || null,
     };
-    this.groups.set([newGroup, ...this.groups()]);
-    this.closeModal();
+
+    this.groupsApi.create(data).subscribe({
+      next: (group) => {
+        this.groups.update(list => [group, ...list]);
+        this.splitGroups();
+        this.closeModal();
+      },
+      error: (err) => {
+        if (err instanceof ApiError) {
+          this.error.set(err.message);
+        } else {
+          this.error.set('Error al crear el grupo');
+        }
+      },
+    });
   }
 }

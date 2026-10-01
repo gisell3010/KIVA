@@ -1,7 +1,8 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.models.group import GroupMember, TravelGroup
 from app.models.trip import Trip, TripMember
+from app.models.user import User
 from app.schemas.group import GroupMemberRead, GroupRead
 from app.services.notification_service import create_notification
 from app.services._shared import (
@@ -12,28 +13,116 @@ from app.services._shared import (
     audit,
     fail,
     group_access,
-    page,
+    mapped_page,
     required,
-    saved,
+    visible_trips,
 )
+
+
+def group_query(actor_id, *, all_trips=False):
+    members_count = (
+        select(func.count(GroupMember.id))
+        .where(GroupMember.group_id == TravelGroup.id)
+        .correlate(TravelGroup)
+        .scalar_subquery()
+    )
+
+    my_role = (
+        select(GroupMember.role)
+        .where(
+            GroupMember.group_id == TravelGroup.id,
+            GroupMember.user_id == actor_id,
+        )
+        .correlate(TravelGroup)
+        .scalar_subquery()
+    )
+
+    trips_count = select(func.count(Trip.id)).where(
+        Trip.group_id == TravelGroup.id
+    )
+
+    if not all_trips:
+        trips_count = trips_count.where(
+            Trip.id.in_(visible_trips(actor_id))
+        )
+
+    return select(
+        TravelGroup.id,
+        TravelGroup.name,
+        TravelGroup.description,
+        TravelGroup.created_at,
+        my_role.label("my_role"),
+        members_count.label("members_count"),
+        trips_count
+        .correlate(TravelGroup)
+        .scalar_subquery()
+        .label("trips_count"),
+    )
+
+
+def _member_query():
+    return select(
+        GroupMember.id,
+        GroupMember.group_id,
+        GroupMember.user_id,
+        GroupMember.role,
+        GroupMember.joined_at,
+        User.full_name,
+        User.username,
+        User.profile_image,
+    ).join(User, User.id == GroupMember.user_id)
+
+
+def _read_group(db, actor_id, group_id):
+    row = db.execute(
+        group_query(actor_id).where(
+            TravelGroup.id == group_id
+        )
+    ).mappings().one_or_none()
+
+    if row is None:
+        fail("Grupo no disponible.", "NOT_FOUND", 404)
+
+    return GroupRead.model_validate(row)
+
+
+def _read_member(db, member_id):
+    row = db.execute(
+        _member_query().where(
+            GroupMember.id == member_id
+        )
+    ).mappings().one()
+
+    return GroupMemberRead.model_validate(row)
 
 
 def list_groups(db, *, actor_id, pagination):
     active_user(db, actor_id)
 
-    statement = (
-        select(TravelGroup)
-        .join(GroupMember)
-        .where(GroupMember.user_id == actor_id)
-        .order_by(TravelGroup.id.desc())
+    group_ids = select(GroupMember.group_id).where(
+        GroupMember.user_id == actor_id
     )
 
-    return page(db, statement, pagination, GroupRead)
+    statement = (
+        group_query(actor_id)
+        .where(TravelGroup.id.in_(group_ids))
+        .order_by(
+            TravelGroup.created_at.desc(),
+            TravelGroup.id.desc(),
+        )
+    )
+
+    return mapped_page(
+        db,
+        statement,
+        pagination,
+        GroupRead,
+    )
 
 
 def get_group(db, *, actor_id, group_id):
-    group, _ = group_access(db, actor_id, group_id)
-    return GroupRead.model_validate(group)
+    group_access(db, actor_id, group_id)
+    return _read_group(db, actor_id, group_id)
 
 
 @atomic
@@ -54,28 +143,33 @@ def create_group(db, *, actor_id, data):
 
     audit(db, actor_id, "GROUP_CREATE", group)
 
-    return saved(db, group, GroupRead)
+    db.flush()
+    return _read_group(db, actor_id, group.id)
 
 
 @atomic
 def update_group(db, *, actor_id, group_id, data):
     group, member = group_access(
-        db, actor_id, group_id, lock=True
+        db,
+        actor_id,
+        group_id,
+        lock=True,
     )
 
     allow(member.role, {"OWNER"})
     apply_patch(group, data)
     audit(db, actor_id, "GROUP_UPDATE", group)
 
-    return saved(db, group, GroupRead)
+    db.flush()
+    return _read_group(db, actor_id, group.id)
 
 
 def list_members(db, *, actor_id, group_id, pagination):
     group_access(db, actor_id, group_id)
 
-    return page(
+    return mapped_page(
         db,
-        select(GroupMember)
+        _member_query()
         .where(GroupMember.group_id == group_id)
         .order_by(GroupMember.id),
         pagination,
@@ -86,7 +180,10 @@ def list_members(db, *, actor_id, group_id, pagination):
 @atomic
 def add_member(db, *, actor_id, group_id, data):
     group, member = group_access(
-        db, actor_id, group_id, lock=True
+        db,
+        actor_id,
+        group_id,
+        lock=True,
     )
 
     allow(member.role, {"OWNER"})
@@ -110,7 +207,9 @@ def add_member(db, *, actor_id, group_id, data):
     )
 
     db.add(new_member)
-    result = saved(db, new_member, GroupMemberRead)
+    db.flush()
+
+    result = _read_member(db, new_member.id)
 
     create_notification(
         db,
@@ -127,7 +226,10 @@ def add_member(db, *, actor_id, group_id, data):
 @atomic
 def remove_member(db, *, actor_id, group_id, user_id):
     _, actor = group_access(
-        db, actor_id, group_id, lock=True
+        db,
+        actor_id,
+        group_id,
+        lock=True,
     )
 
     if actor_id != user_id:
@@ -168,7 +270,10 @@ def remove_member(db, *, actor_id, group_id, user_id):
 @atomic
 def transfer_ownership(db, *, actor_id, group_id, data):
     group, owner = group_access(
-        db, actor_id, group_id, lock=True
+        db,
+        actor_id,
+        group_id,
+        lock=True,
     )
 
     allow(owner.role, {"OWNER"})
@@ -187,13 +292,17 @@ def transfer_ownership(db, *, actor_id, group_id, data):
         successor.role = "OWNER"
         audit(db, actor_id, "GROUP_OWNER_CHANGE", group)
 
-    return saved(db, successor, GroupMemberRead)
+    db.flush()
+    return _read_member(db, successor.id)
 
 
 @atomic
 def delete_group(db, *, actor_id, group_id):
     group, member = group_access(
-        db, actor_id, group_id, lock=True
+        db,
+        actor_id,
+        group_id,
+        lock=True,
     )
 
     allow(member.role, {"OWNER"})

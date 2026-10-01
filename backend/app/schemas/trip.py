@@ -13,8 +13,12 @@ from app.schemas.common import (
 )
 
 TripStatus = Literal[
-    "PLANNING", "CONFIRMED", "COMPLETED", "CANCELLED"
+    "PLANNING",
+    "CONFIRMED",
+    "COMPLETED",
+    "CANCELLED",
 ]
+
 TripRole = Literal["OWNER", "ORGANIZER", "MEMBER"]
 AssignableTripRole = Literal["ORGANIZER", "MEMBER"]
 TripName = Annotated[NonEmptyText, Field(max_length=150)]
@@ -47,7 +51,9 @@ class TripCreate(Schema):
 
 class TripUpdate(PatchSchema):
     nullable_fields = frozenset({
-        "description", "start_date", "end_date"
+        "description",
+        "start_date",
+        "end_date",
     })
 
     name: TripName | None = None
@@ -72,6 +78,11 @@ class TripRead(Schema):
     end_date: date | None
     status: TripStatus
     created_at: UTCDateTime
+    group_name: str
+    my_role: TripRole | None
+    members_count: int = Field(ge=0)
+    destinations_count: int = Field(ge=0)
+    selected_destinations_count: int = Field(ge=0)
 
 
 class TripMemberAdd(Schema):
@@ -88,3 +99,6 @@ class TripMemberRead(Schema):
     trip_id: Id
     user_id: Id
     role: TripRole
+    full_name: str
+    username: str
+    profile_image: str | None

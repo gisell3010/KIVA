@@ -1,141 +1,167 @@
-<div class="shell" [class.sidebar-collapsed]="isSidebarCollapsed" [class.mobile-menu-open]="showMobileMenu">
-  <aside class="sidebar" [class.open]="showMobileMenu" role="navigation" aria-label="Navegación principal">
-    <div class="brand">
-      <app-logo [compact]="isSidebarCollapsed" [showText]="!isSidebarCollapsed" />
-    </div>
+@if (auth.user(); as user) {
+  <div
+    class="shell"
+    [class.sidebar-collapsed]="isSidebarCollapsed"
+    [class.mobile-menu-open]="showMobileMenu"
+  >
+    <aside
+      class="sidebar"
+      [class.open]="showMobileMenu"
+      aria-label="Menú principal"
+    >
+      <div class="brand">
+        <app-logo
+          [compact]="isSidebarCollapsed"
+          [showText]="!isSidebarCollapsed"
+        />
+      </div>
 
-    <button class="mobile-menu-toggle" (click)="toggleMobileMenu()" aria-label="Alternar menú" aria-expanded="showMobileMenu" type="button" *ngIf="isSidebarCollapsed || showMobileMenu">
-      <svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-        <path d="M3 12h18M3 6h18M3 18h18"/>
-      </svg>
-    </button>
+      <nav class="nav">
+        @for (link of links; track link.path) {
+          <a
+            class="nav-item"
+            [routerLink]="link.path"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            [title]="link.label"
+            [attr.aria-label]="link.label"
+            (click)="closeMobileMenu()"
+          >
+            <svg
+              class="nav-icon"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path [attr.d]="link.icon" />
+            </svg>
 
-    <nav class="nav" aria-label="Menú principal">
-      <a routerLink="/dashboard" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/dashboard' ? 'page' : null">
-        <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M9 22V12h6v10"/></svg></span>
-        <span class="nav-label" *ngIf="!isSidebarCollapsed">Inicio</span>
-      </a>
-      <a routerLink="/grupos" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/grupos' ? 'page' : null">
-        <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v2"/></svg></span>
-        <span class="nav-label" *ngIf="!isSidebarCollapsed">Grupos</span>
-      </a>
-      <a routerLink="/viajes" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/viajes' ? 'page' : null">
-        <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h6z"/></svg></span>
-        <span class="nav-label" *ngIf="!isSidebarCollapsed">Viajes</span>
-      </a>
-      <a routerLink="/participantes" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/participantes' ? 'page' : null">
-        <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="8" r="3"/><path d="M2 21v-3a8 8 0 0 1 16 0v3"/><path d="m16.5 3.5 5 5M21.5 3.5l-5 5"/></svg></span>
-        <span class="nav-label" *ngIf="!isSidebarCollapsed">Participantes</span>
-      </a>
-      <a routerLink="/destinos" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/destinos' ? 'page' : null">
-        <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>
-        <span class="nav-label" *ngIf="!isSidebarCollapsed">Destinos</span>
-      </a>
-      <a routerLink="/itinerario" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/itinerario' ? 'page' : null">
-        <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4m8-4v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></span>
-        <span class="nav-label" *ngIf="!isSidebarCollapsed">Itinerario</span>
-      </a>
-      <a routerLink="/gastos" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/gastos' ? 'page' : null">
-        <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
-        <span class="nav-label" *ngIf="!isSidebarCollapsed">Gastos</span>
-      </a>
-      <a routerLink="/votaciones" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/votaciones' ? 'page' : null">
-        <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7.5 12 2.5 2.5L15.5 9"/></svg></span>
-        <span class="nav-label" *ngIf="!isSidebarCollapsed">Votaciones</span>
-      </a>
-      <a routerLink="/reservas" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/reservas' ? 'page' : null">
-        <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9.5V7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2.5a2.5 2.5 0 0 0 0 5V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2.5a2.5 2.5 0 0 0 0-5Z"/><path d="M13 5v2m0 4v2m0 4v2"/></svg></span>
-        <span class="nav-label" *ngIf="!isSidebarCollapsed">Reservas</span>
-      </a>
-      <a routerLink="/calendario" routerLinkActive="active" class="nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/calendario' ? 'page' : null">
-        <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg></span>
-        <span class="nav-label" *ngIf="!isSidebarCollapsed">Calendario</span>
-      </a>
+            @if (!isSidebarCollapsed) {
+              <span class="nav-label">{{ link.label }}</span>
+            }
+          </a>
+        }
 
-      @if (authService.isSupport()) {
-        <div class="nav-divider" *ngIf="!isSidebarCollapsed"></div>
-        <a routerLink="/soporte" routerLinkActive="active" class="nav-item support-nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url.startsWith('/soporte') ? 'page' : null">
-          <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg></span>
-          <span class="nav-label" *ngIf="!isSidebarCollapsed">Soporte</span>
-        </a>
-      }
+        @if (auth.isSupport()) {
+          <div class="nav-divider"></div>
 
-      @if (authService.isAdmin()) {
-        <div class="nav-divider" *ngIf="!isSidebarCollapsed && !authService.isSupport()"></div>
-        <a routerLink="/admin" routerLinkActive="active" class="nav-item admin-nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/admin' ? 'page' : null">
-          <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M9 22V12h6v10"/></svg></span>
-          <span class="nav-label" *ngIf="!isSidebarCollapsed">Administración</span>
-        </a>
-        <a routerLink="/admin/usuarios" routerLinkActive="active" class="nav-item admin-nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/admin/usuarios' ? 'page' : null">
-          <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-          <span class="nav-label" *ngIf="!isSidebarCollapsed">Usuarios</span>
-        </a>
-        <a routerLink="/admin/grupos" routerLinkActive="active" class="nav-item admin-nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url.startsWith('/admin/grupos') ? 'page' : null">
-          <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v2"/></svg></span>
-          <span class="nav-label" *ngIf="!isSidebarCollapsed">Grupos (admin)</span>
-        </a>
-        <a routerLink="/admin/viajes" routerLinkActive="active" class="nav-item admin-nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url.startsWith('/admin/viajes') ? 'page' : null">
-          <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h6z"/></svg></span>
-          <span class="nav-label" *ngIf="!isSidebarCollapsed">Viajes (admin)</span>
-        </a>
-        <a routerLink="/admin/vision-general" routerLinkActive="active" class="nav-item admin-nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/admin/vision-general' ? 'page' : null">
-          <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
-          <span class="nav-label" *ngIf="!isSidebarCollapsed">Visión general</span>
-        </a>
-      }
+          <a
+            class="nav-item support-nav-item"
+            routerLink="/soporte"
+            routerLinkActive="active"
+            (click)="closeMobileMenu()"
+          >
+            Soporte
+          </a>
+        }
 
-      @if (authService.isSuperAdmin()) {
-        <div class="nav-divider" *ngIf="!isSidebarCollapsed"></div>
-        <a routerLink="/super-admin" routerLinkActive="active" class="nav-item super-admin-nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/super-admin' ? 'page' : null">
-          <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/><path d="m9 12 2 2 4-4"/></svg></span>
-          <span class="nav-label" *ngIf="!isSidebarCollapsed">Super Admin</span>
-        </a>
-        <a routerLink="/super-admin/configuracion" routerLinkActive="active" class="nav-item super-admin-nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/super-admin/configuracion' ? 'page' : null">
-          <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></span>
-          <span class="nav-label" *ngIf="!isSidebarCollapsed">Configuración</span>
-        </a>
-        <a routerLink="/super-admin/auditoria" routerLinkActive="active" class="nav-item super-admin-nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/super-admin/auditoria' ? 'page' : null">
-          <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg></span>
-          <span class="nav-label" *ngIf="!isSidebarCollapsed">Auditoría</span>
-        </a>
-        <a routerLink="/super-admin/salud" routerLinkActive="active" class="nav-item super-admin-nav-item" (click)="closeMobileMenu()" [attr.aria-current]="router.url === '/super-admin/salud' ? 'page' : null">
-          <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
-          <span class="nav-label" *ngIf="!isSidebarCollapsed">Salud del sistema</span>
-        </a>
-      }
-    </nav>
+        @if (auth.isAdmin()) {
+          <div class="nav-divider"></div>
 
-    <div class="sidebar-footer" *ngIf="!isSidebarCollapsed">
-      <div class="user-mini">
-        <div class="avatar" [style.background]="currentUser()?.avatarColor">{{ currentUser()?.initials }}</div>
-        <div>
-          <div class="user-name">{{ currentUser()?.displayName }}</div>
-          <div class="user-role">{{ roleLabel(currentUser()?.role) }}</div>
+          @for (link of adminLinks; track link.path) {
+            <a
+              class="nav-item admin-nav-item"
+              [routerLink]="link.path"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              [title]="link.label"
+              [attr.aria-label]="link.label"
+              (click)="closeMobileMenu()"
+            >
+              {{ isSidebarCollapsed ? link.label[0] : link.label }}
+            </a>
+          }
+        }
+
+        @if (auth.isSuperAdmin()) {
+          <div class="nav-divider"></div>
+
+          @for (link of superLinks; track link.path) {
+            <a
+              class="nav-item super-admin-nav-item"
+              [routerLink]="link.path"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: true }"
+              [title]="link.label"
+              [attr.aria-label]="link.label"
+              (click)="closeMobileMenu()"
+            >
+              {{ isSidebarCollapsed ? link.label[0] : link.label }}
+            </a>
+          }
+        }
+      </nav>
+
+      <div class="sidebar-footer">
+        <button
+          type="button"
+          (click)="isSidebarCollapsed = !isSidebarCollapsed"
+          [attr.aria-expanded]="!isSidebarCollapsed"
+          aria-label="Expandir o contraer menú"
+        >
+          ☰
+        </button>
+
+        <div class="user-mini">
+          <span
+            class="avatar"
+            style="background: var(--accent-blue)"
+          >
+            {{ initials() }}
+          </span>
+
+          @if (!isSidebarCollapsed) {
+            <div>
+              <div class="user-name">{{ user.full_name }}</div>
+              <div class="user-role">
+                {{ roleLabels[user.role] }}
+              </div>
+            </div>
+          }
         </div>
       </div>
+    </aside>
+
+    @if (showMobileMenu) {
+      <div
+        class="sidebar-overlay"
+        (click)="closeMobileMenu()"
+      ></div>
+    }
+
+    <div class="main-area">
+      <header class="topbar">
+        <button
+          type="button"
+          class="mobile-menu-btn"
+          (click)="showMobileMenu = !showMobileMenu"
+          [attr.aria-expanded]="showMobileMenu"
+          aria-label="Abrir o cerrar menú"
+        >
+          ☰
+        </button>
+
+        <app-search class="search-wrapper" />
+
+        <a routerLink="/viajes">
+          {{ context.trip()?.name ?? 'Seleccionar viaje' }}
+        </a>
+
+        <div class="topbar-actions">
+          <app-notification-dropdown />
+          <app-profile-dropdown />
+        </div>
+      </header>
+
+      <main class="content">
+        <router-outlet />
+      </main>
     </div>
-  </aside>
-
-  <div class="sidebar-overlay" (click)="closeMobileMenu()" *ngIf="showMobileMenu" aria-hidden="true"></div>
-
-  <div class="main-area">
-    <header class="topbar" role="banner">
-      <button class="mobile-menu-btn" (click)="toggleMobileMenu()" aria-label="Abrir menú" type="button" aria-expanded="showMobileMenu">
-        <svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-          <path d="M3 12h18M3 6h18M3 18h18"/>
-        </svg>
-      </button>
-
-      <app-search class="search-wrapper" />
-
-      <div class="topbar-actions">
-        <app-notification-dropdown />
-        <app-profile-dropdown />
-      </div>
-    </header>
-
-    <main class="content" role="main">
-      <router-outlet />
-    </main>
   </div>
-</div>
+} @else {
+  <router-outlet />
+}

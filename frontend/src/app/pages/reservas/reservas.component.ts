@@ -1,82 +1,206 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { MockDataService } from '../../data-access/mock/mock-data.service';
-import { Trip, Reservation, ReservationStatus } from '../../shared/models/domain.models';
+import { ReservationsApiService } from '../../data-access/api/reservations-api.service';
+import { CatalogsApiService } from '../../data-access/api/catalogs-api.service';
+import { TripsApiService } from '../../data-access/api/trips-api.service';
+import { GroupsApiService } from '../../data-access/api/groups-api.service';
+import { TripRead, GroupRead, ReservationRead, CatalogRead } from '../../shared/models/domain.models';
+import { formatMoney } from '../../shared/utils/money.utils';
+import { formatDate } from '../../shared/utils/date.utils';
+import { ApiError } from '../../core/http/error.interceptor';
 
 @Component({
   selector: 'app-reservas',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule],
   templateUrl: './reservas.component.html',
   styleUrl: './reservas.component.css'
 })
-export class ReservasComponent {
-  private mockData = inject(MockDataService);
+export class ReservasComponent implements OnInit {
+  private readonly reservationsApi = inject(ReservationsApiService);
+  private readonly catalogsApi = inject(CatalogsApiService);
+  private readonly tripsApi = inject(TripsApiService);
+  private readonly groupsApi = inject(GroupsApiService);
 
-  trips = this.mockData.trips;
-  groups = this.mockData.groups;
+  readonly trips = signal<TripRead[]>([]);
+  readonly groups = signal<GroupRead[]>([]);
+  readonly reservationTypes = signal<CatalogRead[]>([]);
 
-  selectedTripId = signal<string>('all');
+  readonly selectedTripId = signal<number | null>(null);
+  readonly reservations = signal<ReservationRead[]>([]);
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
 
-  filteredReservations = computed(() => {
-    const tripId = this.selectedTripId();
-    if (tripId === 'all') return this.mockData.reservations();
-    return this.mockData.reservations().filter(r => r.tripId === tripId);
-  });
+  readonly formatMoney = formatMoney;
 
-  filterTypes = ['all', 'FLIGHT', 'HOTEL', 'ACTIVITY', 'TRANSPORT'] as const;
-  filterType = signal<'all' | 'FLIGHT' | 'HOTEL' | 'ACTIVITY' | 'TRANSPORT'>('all');
-
-  typeFilteredReservations = computed(() => {
-    const type = this.filterType();
-    const reservations = this.filteredReservations();
-    if (type === 'all') return reservations;
-    return reservations.filter(r => r.type === type);
-  });
-
-  tripName(tripId: string): string {
-    return this.trips().find(t => t.id === tripId)?.name || '';
+  ngOnInit(): void {
+    this.loadGroups();
+    this.loadReservationTypes();
+    this.loadTrips();
   }
 
-  groupName(groupId: string): string {
-    return this.groups().find(g => g.id === groupId)?.name || '';
+  loadGroups(): void {
+    this.groupsApi.list({
+      page: 1,
+      page_size: 100
+    }).subscribe({
+      next: page => {
+        this.groups.set(page.items);
+      },
+
+      error: () => {
+        this.groups.set([]);
+      }
+    });
   }
 
-  statusBadge(status: ReservationStatus): string {
+  loadReservationTypes(): void {
+    this.catalogsApi.reservationTypes().subscribe({
+      next: types => {
+        this.reservationTypes.set(types);
+      },
+
+      error: () => {
+        this.reservationTypes.set([]);
+      }
+    });
+  }
+
+  loadTrips(): void {
+    this.tripsApi.list({
+      page: 1,
+      page_size: 100
+    }).subscribe({
+      next: page => {
+        this.trips.set(page.items);
+
+        if (
+          page.items.length > 0 &&
+          this.selectedTripId() === null
+        ) {
+          const tripId = page.items[0].id;
+
+          this.selectedTripId.set(tripId);
+          this.loadReservations(tripId);
+        }
+      },
+
+      error: () => {
+        this.trips.set([]);
+        this.selectedTripId.set(null);
+        this.reservations.set([]);
+      }
+    });
+  }
+
+  loadReservations(tripId: number): void {
+    this.loading.set(true);
+    this.error.set(null);
+
+    this.reservationsApi.list(
+      tripId,
+      {
+        page: 1,
+        page_size: 100
+      }
+    ).subscribe({
+      next: page => {
+        this.reservations.set(page.items);
+        this.loading.set(false);
+      },
+
+      error: (err: unknown) => {
+        this.reservations.set([]);
+
+        if (err instanceof ApiError) {
+          this.error.set(err.message);
+        } else {
+          this.error.set('Error al cargar las reservas.');
+        }
+
+        this.loading.set(false);
+      }
+    });
+  }
+
+  onTripSelect(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const value = select.value;
+
+    if (value === '') {
+      this.selectedTripId.set(null);
+      this.reservations.set([]);
+      this.error.set(null);
+      return;
+    }
+
+    const tripId = Number(value);
+
+    if (!Number.isFinite(tripId)) {
+      this.selectedTripId.set(null);
+      this.reservations.set([]);
+      return;
+    }
+
+    this.selectedTripId.set(tripId);
+    this.loadReservations(tripId);
+  }
+
+  tripName(tripId: number): string {
+    return this.trips().find(
+      trip => trip.id === tripId
+    )?.name || 'Viaje';
+  }
+
+  groupName(groupId: number): string {
+    return this.groups().find(
+      group => group.id === groupId
+    )?.name || 'Grupo';
+  }
+
+  typeLabel(typeId: number): string {
+    return this.reservationTypes().find(
+      type => type.id === typeId
+    )?.name || `Tipo ${typeId}`;
+  }
+
+  reservationDate(value: string | null): string {
+    if (!value) {
+      return 'Sin fecha';
+    }
+
+    return formatDate(value);
+  }
+
+  statusBadge(status: string): string {
     switch (status) {
-      case 'CONFIRMED': return 'badge-green';
-      case 'PENDING': return 'badge-orange';
-      default: return 'badge-cyan';
+      case 'CONFIRMED':
+        return 'badge-green';
+
+      case 'PENDING':
+        return 'badge-orange';
+
+      case 'CANCELLED':
+        return 'badge-red';
+
+      default:
+        return 'badge-gray';
     }
   }
 
-  statusLabel(status: ReservationStatus): string {
+  statusLabel(status: string): string {
     switch (status) {
-      case 'CONFIRMED': return 'Confirmada';
-      case 'PENDING': return 'Pendiente';
-      case 'SIMULATED': return 'Simulada';
-      default: return status;
+      case 'CONFIRMED':
+        return 'Confirmada';
+
+      case 'PENDING':
+        return 'Pendiente';
+
+      case 'CANCELLED':
+        return 'Cancelada';
+
+      default:
+        return status;
     }
-  }
-
-  typeLabel(type: string): string {
-    switch (type) {
-      case 'FLIGHT': return 'Vuelo';
-      case 'HOTEL': return 'Hotel';
-      case 'ACTIVITY': return 'Actividad';
-      case 'TRANSPORT': return 'Transporte';
-      default: return type;
-    }
-  }
-
-  simulateConfirmation(id: string): void {
-    this.mockData.reservations.update(list =>
-      list.map(r => r.id === id ? { ...r, status: 'SIMULATED' as ReservationStatus } : r)
-    );
-  }
-
-  formatMoney(v: number): string {
-    return v.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
   }
 }

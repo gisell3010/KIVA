@@ -1,65 +1,148 @@
-import { Component, signal, computed, inject, HostListener, ElementRef } from '@angular/core';
+import { Component, signal, inject, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NotificationService } from '../../../features/notifications/notification.service';
-import { Notification, NotificationType } from '../../../shared/models/domain.models';
+import { RouterLink } from '@angular/router';
+import { UsersApiService } from '../../../data-access/api/users-api.service';
+import { NotificationRead, UnreadCount } from '../../../shared/models/domain.models';
+import { formatRelativeTime } from '../../../shared/utils/date.utils';
 
 @Component({
   selector: 'app-notification-dropdown',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   template: `
-    <div class="notification-dropdown" #dropdown>
+    <div class="notification-dropdown">
       <button
-        class="icon-btn notification-trigger"
-        (click)="toggle()"
-        [attr.aria-expanded]="isOpen()"
-        [attr.aria-label]="'Notificaciones (' + unreadCount() + ' sin leer)'"
         type="button"
+        class="icon-btn notification-trigger"
+        [attr.aria-expanded]="isOpen()"
+        [attr.aria-label]="'Notificaciones (' + unreadCount().total + ' sin leer)'"
+        (click)="toggle()"
       >
-        <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
-          <path d="M13.7 21a2 2 0 0 1-3.4 0"/>
+        <svg
+          class="ui-icon"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.7 21a2 2 0 0 1-3.4 0" />
         </svg>
-        @if (unreadCount() > 0) {
-          <span class="notification-badge">{{ unreadCount() > 9 ? '9+' : unreadCount() }}</span>
+
+        @if (unreadCount().total > 0) {
+          <span class="notification-badge">
+            {{ unreadCount().total > 9 ? '9+' : unreadCount().total }}
+          </span>
         }
       </button>
 
       @if (isOpen()) {
-        <div class="dropdown-panel" role="menu" (click)="$event.stopPropagation()">
+        <div
+          class="dropdown-panel"
+          role="menu"
+          (click)="$event.stopPropagation()"
+        >
           <div class="dropdown-header">
             <h3>Notificaciones</h3>
-            @if (unreadCount() > 0) {
-              <button class="btn btn-ghost btn-sm" (click)="markAllAsRead()">Marcar todas como leídas</button>
+
+            @if (unreadCount().total > 0) {
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                (click)="markAllAsRead()"
+              >
+                Marcar todas como leídas
+              </button>
             }
           </div>
 
-          <div class="dropdown-list" role="list">
+          <div
+            class="dropdown-list"
+            role="list"
+          >
             @if (recentNotifications().length === 0) {
-              <div class="empty-state" role="listitem">
-                <svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                  <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
-                  <path d="M13.7 21a2 2 0 0 1-3.4 0"/>
+              <div
+                class="empty-state"
+                role="listitem"
+              >
+                <svg
+                  class="ui-icon"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  aria-hidden="true"
+                >
+                  <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.7 21a2 2 0 0 1-3.4 0" />
                 </svg>
+
                 <p>No hay notificaciones recientes</p>
               </div>
             } @else {
               @for (notification of recentNotifications(); track notification.id) {
-                <div class="notification-item" [class.unread]="!notification.readAt" role="listitem">
-                  <div class="notification-icon" [ngClass]="typeIconClass(notification.type)">
-                    <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                      <path [attr.d]="typeIconPath(notification.type)"/>
+                <div
+                  class="notification-item"
+                  [class.unread]="!notification.is_read"
+                  role="listitem"
+                >
+                  <div class="notification-icon">
+                    <svg
+                      class="ui-icon"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
                     </svg>
                   </div>
+
                   <div class="notification-content">
-                    <div class="notification-title">{{ notification.title }}</div>
-                    <div class="notification-message">{{ notification.message }}</div>
-                    <div class="notification-time">{{ formatRelativeTime(notification.createdAt) }}</div>
+                    <div class="notification-title">
+                      {{ notification.title }}
+                    </div>
+
+                    <div class="notification-message">
+                      {{ notification.message }}
+                    </div>
+
+                    <div class="notification-time">
+                      {{ formatRelativeTime(notification.created_at) }}
+                    </div>
                   </div>
-                  @if (!notification.readAt) {
-                    <button class="mark-read-btn" (click)="markAsRead(notification.id)" aria-label="Marcar como leída">
-                      <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <path d="M20 6 9 17l-5-5"/>
+
+                  @if (!notification.is_read) {
+                    <button
+                      type="button"
+                      class="mark-read-btn"
+                      aria-label="Marcar como leída"
+                      (click)="markAsRead(notification.id)"
+                    >
+                      <svg
+                        class="ui-icon"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        aria-hidden="true"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
                       </svg>
                     </button>
                   }
@@ -69,7 +152,13 @@ import { Notification, NotificationType } from '../../../shared/models/domain.mo
           </div>
 
           <div class="dropdown-footer">
-            <a routerLink="/notificaciones" class="btn btn-outline btn-full" (click)="close()">Ver todas las notificaciones</a>
+            <a
+              routerLink="/notificaciones"
+              class="btn btn-outline btn-full"
+              (click)="close()"
+            >
+              Ver todas las notificaciones
+            </a>
           </div>
         </div>
       }
@@ -88,39 +177,46 @@ import { Notification, NotificationType } from '../../../shared/models/domain.mo
       position: absolute;
       top: -4px;
       right: -4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       min-width: 18px;
       height: 18px;
+      padding: 0 4px;
+      border-radius: 999px;
       background: var(--accent-red);
       color: white;
       font-size: 0.65rem;
       font-weight: 700;
-      border-radius: 999px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 4px;
     }
 
     .dropdown-panel {
       position: absolute;
       top: calc(100% + 8px);
       right: 0;
-      width: 380px;
-      max-height: 480px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-soft);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-glow);
-      overflow: hidden;
+      z-index: 100;
       display: flex;
       flex-direction: column;
-      z-index: 100;
+      width: 380px;
+      max-height: 480px;
+      overflow: hidden;
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius);
+      background: var(--bg-card);
+      box-shadow: var(--shadow-glow);
       animation: dropdownIn 0.15s ease;
     }
 
     @keyframes dropdownIn {
-      from { opacity: 0; transform: translateY(-8px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .dropdown-header {
@@ -132,9 +228,9 @@ import { Notification, NotificationType } from '../../../shared/models/domain.mo
     }
 
     .dropdown-header h3 {
+      margin: 0;
       font-size: 0.95rem;
       font-weight: 700;
-      margin: 0;
     }
 
     .btn-sm {
@@ -154,8 +250,8 @@ import { Notification, NotificationType } from '../../../shared/models/domain.mo
       gap: 10px;
       padding: 10px 12px;
       border-radius: 10px;
-      transition: background 0.15s ease;
       cursor: pointer;
+      transition: background 0.15s ease;
     }
 
     .notification-item:hover {
@@ -167,22 +263,16 @@ import { Notification, NotificationType } from '../../../shared/models/domain.mo
     }
 
     .notification-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
     }
-
-    .notification-icon.group { background: rgba(59,130,246,0.15); color: #60a5fa; }
-    .notification-icon.trip { background: rgba(34,197,94,0.15); color: #4ade80; }
-    .notification-icon.vote { background: rgba(168,85,247,0.15); color: #c084fc; }
-    .notification-icon.expense { background: rgba(249,115,22,0.15); color: #fb923c; }
-    .notification-icon.reservation { background: rgba(34,211,238,0.15); color: #22d3ee; }
-    .notification-icon.calendar { background: rgba(236,72,153,0.15); color: #f472b6; }
-    .notification-icon.system { background: rgba(148,163,184,0.15); color: #94a3b8; }
 
     .notification-content {
       flex: 1;
@@ -190,36 +280,36 @@ import { Notification, NotificationType } from '../../../shared/models/domain.mo
     }
 
     .notification-title {
+      margin-bottom: 2px;
+      color: var(--text-primary);
       font-size: 0.8rem;
       font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 2px;
     }
 
     .notification-message {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      line-height: 1.4;
       margin-bottom: 4px;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      line-height: 1.4;
     }
 
     .notification-time {
-      font-size: 0.65rem;
       color: var(--text-muted);
+      font-size: 0.65rem;
     }
 
     .mark-read-btn {
-      width: 24px;
-      height: 24px;
-      border-radius: 6px;
-      background: transparent;
-      border: none;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
       color: var(--text-muted);
       cursor: pointer;
-      flex-shrink: 0;
     }
 
     .mark-read-btn:hover {
@@ -248,45 +338,82 @@ import { Notification, NotificationType } from '../../../shared/models/domain.mo
     }
 
     .dropdown-footer {
-      border-top: 1px solid var(--border-soft);
       padding: 12px 16px;
+      border-top: 1px solid var(--border-soft);
     }
 
     @media (max-width: 480px) {
       .dropdown-panel {
-        width: calc(100vw - 32px);
         right: -16px;
+        width: calc(100vw - 32px);
       }
     }
   `]
 })
 export class NotificationDropdownComponent {
-  private notificationService = inject(NotificationService);
-  private elementRef = inject(ElementRef);
+  private readonly usersApi = inject(UsersApiService);
+  private readonly elementRef = inject(ElementRef);
 
-  isOpen = signal(false);
-  unreadCount = this.notificationService.unreadCount;
-  recentNotifications = this.notificationService.getRecentNotifications.bind(this.notificationService);
+  readonly isOpen = signal(false);
+  readonly unreadCount = signal<UnreadCount>({ total: 0 });
+  readonly recentNotifications = signal<NotificationRead[]>([]);
+
+  readonly formatRelativeTime = formatRelativeTime;
 
   toggle(): void {
-    this.isOpen.update(v => !v);
+    this.isOpen.update(value => !value);
+
+    if (this.isOpen()) {
+      this.loadNotifications();
+    }
   }
 
   close(): void {
     this.isOpen.set(false);
   }
 
-  markAsRead(id: string): void {
-    this.notificationService.markAsRead(id);
+  markAsRead(id: number): void {
+    this.usersApi.markAsRead(id).subscribe({
+      next: () => {
+        this.recentNotifications.update(notifications =>
+          notifications.map(notification =>
+            notification.id === id
+              ? {
+                  ...notification,
+                  is_read: true
+                }
+              : notification
+          )
+        );
+
+        this.loadUnreadCount();
+      }
+    });
   }
 
   markAllAsRead(): void {
-    this.notificationService.markAllAsRead();
+    this.usersApi.markAllAsRead().subscribe({
+      next: () => {
+        this.recentNotifications.update(notifications =>
+          notifications.map(notification => ({
+            ...notification,
+            is_read: true
+          }))
+        );
+
+        this.unreadCount.set({
+          total: 0
+        });
+      }
+    });
   }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: Event): void {
-    if (this.isOpen() && !this.elementRef.nativeElement.contains(event.target)) {
+    if (
+      this.isOpen() &&
+      !this.elementRef.nativeElement.contains(event.target)
+    ) {
       this.close();
     }
   }
@@ -296,44 +423,34 @@ export class NotificationDropdownComponent {
     this.close();
   }
 
-  typeIconClass(type: NotificationType): string {
-    switch (type) {
-      case 'GROUP_INVITATION': return 'group';
-      case 'TRIP_INVITATION': return 'trip';
-      case 'TRIP_UPDATE': return 'trip';
-      case 'VOTE': return 'vote';
-      case 'EXPENSE': return 'expense';
-      case 'RESERVATION': return 'reservation';
-      case 'CALENDAR': return 'calendar';
-      case 'SYSTEM': return 'system';
-    }
+  private loadNotifications(): void {
+    this.loadUnreadCount();
+
+    this.usersApi.listNotifications({
+      page: 1,
+      page_size: 10
+    }).subscribe({
+      next: page => {
+        this.recentNotifications.set(page.items);
+      },
+
+      error: () => {
+        this.recentNotifications.set([]);
+      }
+    });
   }
 
-  typeIconPath(type: NotificationType): string {
-    switch (type) {
-      case 'GROUP_INVITATION': return 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2';
-      case 'TRIP_INVITATION': return 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z';
-      case 'TRIP_UPDATE': return 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z';
-      case 'VOTE': return 'M9 11l3 3L22 4';
-      case 'EXPENSE': return 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6';
-      case 'RESERVATION': return 'M2 9.5V7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2.5a2.5 2.5 0 0 0 0 5V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2.5a2.5 2.5 0 0 0 0-5Z';
-      case 'CALENDAR': return 'M8 2v4M16 2v4M3 10h18';
-      case 'SYSTEM': return 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2';
-    }
-  }
+  private loadUnreadCount(): void {
+    this.usersApi.unreadCount().subscribe({
+      next: count => {
+        this.unreadCount.set(count);
+      },
 
-  formatRelativeTime(isoString: string): string {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Ahora mismo';
-    if (diffMins < 60) return `Hace ${diffMins} min`;
-    if (diffHours < 24) return `Hace ${diffHours} h`;
-    if (diffDays < 7) return `Hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
-    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+      error: () => {
+        this.unreadCount.set({
+          total: 0
+        });
+      }
+    });
   }
 }

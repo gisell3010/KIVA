@@ -1,70 +1,43 @@
-import { CanActivateFn } from '@angular/router';
 import { inject } from '@angular/core';
+import { CanActivateFn, Router } from '@angular/router';
+import { GlobalRole } from '../../shared/models/domain.models';
 import { AuthService } from '../auth/auth.service';
-import { Router } from '@angular/router';
 
-export const authGuard: CanActivateFn = (route, state) => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
+function allowRoles(
+  roles: readonly GlobalRole[],
+): CanActivateFn {
+  return async (_route, state) => {
+    const auth = inject(AuthService);
+    const router = inject(Router);
 
-  if (auth.isAuthenticated()) {
-    return true;
-  }
+    await auth.initialize();
 
-  return router.parseUrl('/login');
-};
+    const user = auth.user();
 
-export const guestGuard: CanActivateFn = (route, state) => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
+    if (!user) {
+      return router.createUrlTree(['/login'], {
+        queryParams: {
+          returnUrl: state.url,
+        },
+      });
+    }
 
-  if (!auth.isAuthenticated()) {
-    return true;
-  }
+    return roles.includes(user.role)
+      || router.createUrlTree(['/dashboard']);
+  };
+}
 
-  return router.parseUrl('/dashboard');
-};
+export const adminGuard = allowRoles([
+  'ADMIN',
+  'SUPER_ADMIN',
+]);
 
-export const superAdminGuard: CanActivateFn = (route, state) => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
+export const supportGuard = allowRoles([
+  'SUPPORT',
+  'ADMIN',
+  'SUPER_ADMIN',
+]);
 
-  if (auth.isAuthenticated() && auth.isSuperAdmin()) {
-    return true;
-  }
-
-  return router.parseUrl('/dashboard');
-};
-
-export const adminGuard: CanActivateFn = (route, state) => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-
-  if (auth.isAuthenticated() && auth.isAdmin()) {
-    return true;
-  }
-
-  return router.parseUrl('/dashboard');
-};
-
-export const supportGuard: CanActivateFn = (route, state) => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-
-  if (auth.isAuthenticated() && auth.isSupport()) {
-    return true;
-  }
-
-  return router.parseUrl('/dashboard');
-};
-
-export const userGuard: CanActivateFn = (route, state) => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-
-  if (auth.isAuthenticated()) {
-    return true;
-  }
-
-  return router.parseUrl('/login');
-};
+export const superAdminGuard = allowRoles([
+  'SUPER_ADMIN',
+]);

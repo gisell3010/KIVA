@@ -254,6 +254,25 @@ def visible_trips(actor_id):
         )
     )
 
-
 def utc_now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+def mapped_page(db, statement, pagination, schema):
+    total = db.scalar(
+        select(func.count()).select_from(
+            statement.order_by(None).subquery()
+        )
+    )
+
+    rows = db.execute(
+        statement.offset(
+            (pagination.page - 1) * pagination.page_size
+        ).limit(pagination.page_size)
+    ).mappings().all()
+
+    return Page[schema](
+        items=[schema.model_validate(row) for row in rows],
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+    )
