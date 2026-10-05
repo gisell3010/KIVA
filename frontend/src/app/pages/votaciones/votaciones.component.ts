@@ -1,28 +1,45 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { allPages } from '../../core/http/all-pages';
 import { CommonModule } from '@angular/common';
-import { forkJoin } from 'rxjs';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { catchError, forkJoin, of } from 'rxjs';
+import { ApiError } from '../../core/http/error.interceptor';
+import { DestinationsApiService } from '../../data-access/api/destinations-api.service';
+import { GroupsApiService } from '../../data-access/api/groups-api.service';
 import { PollsApiService } from '../../data-access/api/polls-api.service';
 import { TripsApiService } from '../../data-access/api/trips-api.service';
-import { GroupsApiService } from '../../data-access/api/groups-api.service';
-import { TripRead, GroupRead, PollRead, PollDetail, PollResults } from '../../shared/models/domain.models';
+import { PrivateImageComponent } from '../../shared/components/private-image/private-image.component';
+import {
+  DestinationPhotoRead,
+  GroupRead,
+  PollCreate,
+  PollDetail,
+  PollRead,
+  PollResults,
+  TripRead,
+} from '../../shared/models/domain.models';
 import { formatDate } from '../../shared/utils/date.utils';
-import { ApiError } from '../../core/http/error.interceptor';
+import { isTripManager } from '../../shared/utils/permissions.utils';
 
 @Component({
   selector: 'app-votaciones',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, PrivateImageComponent],
   templateUrl: './votaciones.component.html',
-  styleUrl: './votaciones.component.css'
+  styleUrl: './votaciones.component.css',
 })
 export class VotacionesComponent implements OnInit {
   private readonly pollsApi = inject(PollsApiService);
+  private readonly destinationsApi = inject(DestinationsApiService);
   private readonly tripsApi = inject(TripsApiService);
   private readonly groupsApi = inject(GroupsApiService);
 
   readonly trips = signal<TripRead[]>([]);
   readonly groups = signal<GroupRead[]>([]);
   readonly polls = signal<PollRead[]>([]);
+  readonly coverPhotoSrc = signal<string | null>(null);
+  readonly coverDestinationLabel = signal('');
+  readonly coverLoading = signal(false);
 
   readonly selectedTripId = signal<number | null>(null);
   readonly selectedPoll = signal<PollDetail | null>(null);
@@ -33,6 +50,14 @@ export class VotacionesComponent implements OnInit {
   readonly loadingPoll = signal(false);
   readonly voting = signal(false);
   readonly error = signal<string | null>(null);
+  readonly showCreate = signal(false);
+  readonly savingPoll = signal(false);
+  readonly pollForm = signal({ question: '', closes_at: '', options: ['', ''] });
+
+  readonly currentTrip = computed(
+    () => this.trips().find((t) => t.id === this.selectedTripId()) ?? null
+  );
+  readonly canManage = computed(() => isTripManager(this.currentTrip()));
 
   readonly formatDate = formatDate;
 
@@ -42,33 +67,34 @@ export class VotacionesComponent implements OnInit {
   }
 
   loadTrips(): void {
-    this.tripsApi.list({
-      page: 1,
-      page_size: 100
-    }).subscribe({
-      next: page => {
-        this.trips.set(page.items);
-      },
+    allPages(page => this.tripsApi.list({ page, page_size: 100 }))
+      .subscribe({
+        next: (page) => {
+          this.trips.set(page.items);
 
-      error: () => {
-        this.trips.set([]);
-      }
-    });
+          if (page.items.length && this.selectedTripId() === null) {
+            const firstTripId = page.items[0].id;
+            this.selectedTripId.set(firstTripId);
+            this.loadPolls();
+            this.loadTripCover(firstTripId);
+          }
+        },
+        error: () => {
+          this.trips.set([]);
+        },
+      });
   }
 
   loadGroups(): void {
-    this.groupsApi.list({
-      page: 1,
-      page_size: 100
-    }).subscribe({
-      next: page => {
-        this.groups.set(page.items);
-      },
-
-      error: () => {
-        this.groups.set([]);
-      }
-    });
+    allPages(page => this.groupsApi.list({ page, page_size: 100 }))
+      .subscribe({
+        next: (page) => {
+          this.groups.set(page.items);
+        },
+        error: () => {
+          this.groups.set([]);
+        },
+      });
   }
 
   loadPolls(): void {
@@ -82,30 +108,24 @@ export class VotacionesComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.pollsApi.list(
-      tripId,
-      {
-        page: 1,
-        page_size: 100
-      }
-    ).subscribe({
-      next: page => {
-        this.polls.set(page.items);
-        this.loading.set(false);
-      },
+    allPages(page => this.pollsApi.list(tripId, { page, page_size: 100 }))
+      .subscribe({
+        next: (page) => {
+          this.polls.set(page.items);
+          this.loading.set(false);
+        },
+        error: (err: unknown) => {
+          this.polls.set([]);
 
-      error: (err: unknown) => {
-        this.polls.set([]);
+          if (err instanceof ApiError) {
+            this.error.set(err.message);
+          } else {
+            this.error.set('Error al cargar las votaciones.');
+          }
 
-        if (err instanceof ApiError) {
-          this.error.set(err.message);
-        } else {
-          this.error.set('Error al cargar las votaciones.');
-        }
-
-        this.loading.set(false);
-      }
-    });
+          this.loading.set(false);
+        },
+      });
   }
 
   onTripSelect(event: Event): void {
@@ -117,6 +137,8 @@ export class VotacionesComponent implements OnInit {
     if (value === '') {
       this.selectedTripId.set(null);
       this.polls.set([]);
+      this.coverPhotoSrc.set(null);
+      this.coverDestinationLabel.set('');
       this.error.set(null);
       return;
     }
@@ -131,6 +153,7 @@ export class VotacionesComponent implements OnInit {
 
     this.selectedTripId.set(tripId);
     this.loadPolls();
+    this.loadTripCover(tripId);
   }
 
   openPoll(pollId: number): void {
@@ -145,7 +168,7 @@ export class VotacionesComponent implements OnInit {
 
     forkJoin({
       detail: this.pollsApi.get(tripId, pollId),
-      results: this.pollsApi.results(tripId, pollId)
+      results: this.pollsApi.results(tripId, pollId),
     }).subscribe({
       next: ({ detail, results }) => {
         this.selectedPoll.set(detail);
@@ -153,13 +176,12 @@ export class VotacionesComponent implements OnInit {
 
         this.selectedOptionIds.set(
           results.options
-            .filter(option => option.selected_by_me)
-            .map(option => option.id)
+            .filter((option) => option.selected_by_me)
+            .map((option) => option.id)
         );
 
         this.loadingPoll.set(false);
       },
-
       error: (err: unknown) => {
         this.selectedPoll.set(null);
         this.pollResults.set(null);
@@ -172,7 +194,7 @@ export class VotacionesComponent implements OnInit {
         }
 
         this.loadingPoll.set(false);
-      }
+      },
     });
   }
 
@@ -193,9 +215,9 @@ export class VotacionesComponent implements OnInit {
       return;
     }
 
-    this.selectedOptionIds.update(current =>
+    this.selectedOptionIds.update((current) =>
       current.includes(optionId)
-        ? current.filter(id => id !== optionId)
+        ? current.filter((id) => id !== optionId)
         : [...current, optionId]
     );
   }
@@ -204,26 +226,17 @@ export class VotacionesComponent implements OnInit {
     const tripId = this.selectedTripId();
     const poll = this.selectedPoll();
 
-    if (
-      tripId === null ||
-      !poll ||
-      poll.status !== 'OPEN'
-    ) {
+    if (tripId === null || !poll || poll.status !== 'OPEN') {
       return;
     }
 
     this.voting.set(true);
     this.error.set(null);
 
-    this.pollsApi.setVotes(
-      tripId,
-      poll.id,
-      this.selectedOptionIds()
-    ).subscribe({
+    this.pollsApi.setVotes(tripId, poll.id, this.selectedOptionIds()).subscribe({
       next: () => {
         this.refreshResults(tripId, poll.id);
       },
-
       error: (err: unknown) => {
         if (err instanceof ApiError) {
           this.error.set(err.message);
@@ -232,36 +245,104 @@ export class VotacionesComponent implements OnInit {
         }
 
         this.voting.set(false);
-      }
+      },
     });
   }
 
   resultFor(optionId: number) {
-    return this.pollResults()
-      ?.options
-      .find(option => option.id === optionId) ?? null;
+    return (
+      this.pollResults()?.options.find((option) => option.id === optionId) ?? null
+    );
   }
 
   tripName(tripId: number): string {
-    return this.trips().find(
-      trip => trip.id === tripId
-    )?.name || 'Viaje';
+    return this.trips().find((trip) => trip.id === tripId)?.name || 'Viaje';
   }
 
   groupName(groupId: number): string {
-    return this.groups().find(
-      group => group.id === groupId
-    )?.name || 'Grupo';
+    return this.groups().find((group) => group.id === groupId)?.name || 'Grupo';
+  }
+
+  roleLabel(role: string | null | undefined): string {
+    return role === 'OWNER'
+      ? 'Responsable del viaje'
+      : role === 'ORGANIZER'
+        ? 'Organizador'
+        : 'Participante';
+  }
+
+  private loadTripCover(tripId: number): void {
+    this.coverLoading.set(true);
+    this.coverPhotoSrc.set(null);
+    this.coverDestinationLabel.set('');
+
+    allPages(page => this.destinationsApi.list(tripId, { page, page_size: 100 }))
+      .subscribe({
+        next: (page) => {
+          if (this.selectedTripId() !== tripId) return;
+
+          const destinations = [...page.items].sort(
+            (a, b) => Number(b.is_selected) - Number(a.is_selected),
+          );
+
+          if (!destinations.length) {
+            this.coverLoading.set(false);
+            return;
+          }
+
+          const requests = destinations.map((destination) =>
+            this.destinationsApi
+              .photos(tripId, destination.id)
+              .pipe(catchError(() => of([] as DestinationPhotoRead[]))),
+          );
+
+          forkJoin(requests).subscribe({
+            next: (photoLists) => {
+              if (this.selectedTripId() !== tripId) return;
+
+              const index = photoLists.findIndex((photos) => photos.length > 0);
+
+              if (index >= 0) {
+                const destination = destinations[index];
+                const photo = photoLists[index][0];
+
+                this.coverDestinationLabel.set(
+                  `${destination.place_name}, ${destination.country}`,
+                );
+                this.coverPhotoSrc.set(
+                  photo.image_url ||
+                    `/trips/${tripId}/destinations/${destination.id}/photos/${photo.id}/file`,
+                );
+              } else {
+                const destination = destinations[0];
+                this.coverDestinationLabel.set(
+                  `${destination.place_name}, ${destination.country}`,
+                );
+              }
+
+              this.coverLoading.set(false);
+            },
+            error: () => {
+              if (this.selectedTripId() === tripId) {
+                this.coverLoading.set(false);
+              }
+            },
+          });
+        },
+        error: () => {
+          if (this.selectedTripId() === tripId) {
+            this.coverLoading.set(false);
+          }
+        },
+      });
   }
 
   statusBadge(status: string): string {
     switch (status) {
       case 'OPEN':
         return 'badge-green';
-
       case 'CLOSED':
         return 'badge-red';
-
       default:
         return 'badge-gray';
     }
@@ -271,36 +352,132 @@ export class VotacionesComponent implements OnInit {
     switch (status) {
       case 'OPEN':
         return 'Abierta';
-
       case 'CLOSED':
         return 'Cerrada';
-
       default:
         return status;
     }
   }
 
+  openCreatePoll(): void {
+    if (!this.canManage()) return;
+    this.pollForm.set({ question: '', closes_at: '', options: ['', ''] });
+    this.showCreate.set(true);
+  }
+
+  closeCreatePoll(): void {
+    this.showCreate.set(false);
+  }
+
+  setPollQuestion(value: string): void {
+    this.pollForm.update((f) => ({ ...f, question: value }));
+  }
+
+  setPollDeadline(value: string): void {
+    this.pollForm.update((f) => ({ ...f, closes_at: value }));
+  }
+
+  setPollOption(index: number, value: string): void {
+    this.pollForm.update((f) => ({
+      ...f,
+      options: f.options.map((item, i) => (i === index ? value : item)),
+    }));
+  }
+
+  addPollOption(): void {
+    this.pollForm.update((f) => ({ ...f, options: [...f.options, ''] }));
+  }
+
+  removePollOption(index: number): void {
+    if (this.pollForm().options.length <= 2) return;
+    this.pollForm.update((f) => ({
+      ...f,
+      options: f.options.filter((_, i) => i !== index),
+    }));
+  }
+
+  createPoll(): void {
+    const tripId = this.selectedTripId();
+    const form = this.pollForm();
+    const options = form.options.map((v) => v.trim()).filter(Boolean);
+
+    if (!tripId || !this.canManage() || !form.question.trim() || options.length < 2) {
+      return;
+    }
+
+    const data: PollCreate = {
+      question: form.question.trim(),
+      closes_at: form.closes_at ? new Date(form.closes_at).toISOString() : null,
+      options: options.map((option_text) => ({ option_text })),
+    };
+
+    this.savingPoll.set(true);
+    this.pollsApi.create(tripId, data).subscribe({
+      next: () => {
+        this.savingPoll.set(false);
+        this.closeCreatePoll();
+        this.loadPolls();
+      },
+      error: (e) => {
+        this.savingPoll.set(false);
+        this.error.set(
+          e instanceof ApiError ? e.message : 'No se pudo crear la votación.'
+        );
+      },
+    });
+  }
+
+  closeManagedPoll(poll: PollRead): void {
+    const tripId = this.selectedTripId();
+    if (!tripId || !this.canManage() || poll.status !== 'OPEN') return;
+
+    this.pollsApi.close(tripId, poll.id).subscribe({
+      next: () => {
+        this.closePoll();
+        this.loadPolls();
+      },
+      error: (e) =>
+        this.error.set(
+          e instanceof ApiError ? e.message : 'No se pudo cerrar la votación.'
+        ),
+    });
+  }
+
+  deleteManagedPoll(poll: PollRead): void {
+    const tripId = this.selectedTripId();
+    if (!tripId || !this.canManage() || !confirm('¿Eliminar esta votación?')) return;
+
+    this.pollsApi.delete(tripId, poll.id).subscribe({
+      next: () => {
+        this.closePoll();
+        this.loadPolls();
+      },
+      error: (e) =>
+        this.error.set(
+          e instanceof ApiError ? e.message : 'No se pudo eliminar la votación.'
+        ),
+    });
+  }
+
   private refreshResults(tripId: number, pollId: number): void {
     this.pollsApi.results(tripId, pollId).subscribe({
-      next: results => {
+      next: (results) => {
         this.pollResults.set(results);
 
         this.selectedOptionIds.set(
           results.options
-            .filter(option => option.selected_by_me)
-            .map(option => option.id)
+            .filter((option) => option.selected_by_me)
+            .map((option) => option.id)
         );
 
         this.voting.set(false);
       },
-
       error: () => {
         this.voting.set(false);
-
         this.error.set(
           'Los votos se guardaron, pero no se pudieron actualizar los resultados.'
         );
-      }
+      },
     });
   }
 }

@@ -42,7 +42,7 @@ def search_users(db, *, actor_id, username, pagination):
         select(User)
         .where(
             User.status == "ACTIVE",
-            User.username.startswith(query, autoescape=True),
+            func.lower(User.username).contains(query, autoescape=True),
         )
         .order_by(User.username, User.id)
     )

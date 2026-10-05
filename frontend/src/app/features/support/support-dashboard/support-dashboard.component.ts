@@ -17,7 +17,7 @@ import { SupportDashboardRead } from '../../../shared/models/domain.models';
             Panel de Soporte
           </h1>
           <p class="page-subtitle">
-            Consulta general de usuarios de KIVA
+            Atiende incidencias de cuentas y revisa registros de viajes.
           </p>
         </div>
         <a

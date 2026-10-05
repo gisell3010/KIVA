@@ -1,138 +1,110 @@
 <div class="page-head">
   <div>
     <h1 class="page-title">Participantes</h1>
-    <p class="page-subtitle">
-      Personas que forman parte de tus grupos.
-    </p>
+    <p class="page-subtitle">Consulta y gestiona quién participa en cada viaje.</p>
   </div>
+  @if (canManage()) {
+    <button class="btn btn-primary" type="button" (click)="showAdd.set(true)">
+      Agregar participante
+    </button>
+  }
+</div>
+
+<div class="card filter-card">
+  <label for="participantTrip">Viaje</label>
+  <select id="participantTrip" class="form-input" [value]="selectedTripId() ?? ''" (change)="onTripSelect($event)">
+    @for (t of trips(); track t.id) {
+      <option [value]="t.id">{{ t.name }}</option>
+    }
+  </select>
+
+  @if (selectedTrip()) {
+    <p class="permissions-note">
+      En este viaje participas como <strong>{{ roleLabel(selectedTrip()!.my_role || 'MEMBER') }}</strong>.
+    </p>
+  }
 </div>
 
 @if (error()) {
   <div class="error-banner" role="alert">
-    <svg
-      class="ui-icon"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 8v4M12 16h.01" />
-    </svg>
-
     {{ error() }}
   </div>
 }
 
 @if (loading()) {
-  <div class="loading-state">
-    <svg
-      class="ui-icon animate-spin"
-      width="32"
-      height="32"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-    >
-      <path d="M21 12a9 9 0 11-6.219-8.56" />
-    </svg>
-
-    <p>Cargando participantes...</p>
-  </div>
+  <div class="loading-state">Cargando participantes...</div>
 } @else {
   <div class="grid grid-cols-3">
-    @for (
-      participant of participants();
-      track participant.user_id
-    ) {
-      <div class="card user-card">
-        <div class="user-card-top">
-          <app-private-image
-            [src]="'/users/' + participant.user_id + '/profile-image'"
-            [alt]="participant.full_name"
-            width="60px"
-            height="60px"
-            borderRadius="50%"
-            class="avatar avatar-lg"
-          ></app-private-image>
+    @for (m of members(); track m.user_id) {
+      <article class="card user-card">
+        <app-user-avatar
+          [userId]="m.user_id"
+          [fullName]="m.full_name"
+          [profileImage]="m.profile_image"
+          size="60px"
+        ></app-user-avatar>
+        <h3>{{ m.full_name }}</h3>
+        <p>&#64;{{ m.username }}</p>
+        <span class="badge">{{ roleLabel(m.role) }}</span>
 
-          <span
-            class="badge"
-            [ngClass]="roleBadge(getPrimaryRole(participant))"
-          >
-            {{ roleLabel(getPrimaryRole(participant)) }}
-          </span>
-        </div>
+        <div class="card-actions">
+          @if (isOwner() && m.role !== 'OWNER') {
+            @if (m.role === 'MEMBER') {
+              <button class="btn btn-outline btn-sm" type="button" (click)="changeRole(m, 'ORGANIZER')">
+                Hacer organizador
+              </button>
+            } @else {
+              <button class="btn btn-outline btn-sm" type="button" (click)="changeRole(m, 'MEMBER')">
+                Quitar organizador
+              </button>
+            }
+            <button class="btn btn-ghost btn-sm" type="button" (click)="transfer(m)">
+              Transferir responsabilidad
+            </button>
+          }
 
-        <h3 class="user-nombre">
-          {{ participant.full_name }}
-        </h3>
-
-        <p class="user-email">
-          &#64;{{ participant.username }}
-        </p>
-
-        <div class="user-grupos">
-          @for (
-            membership of participant.groupMemberships;
-            track membership.groupId
-          ) {
-            <span class="chip">
-              <svg
-                class="ui-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                aria-hidden="true"
-              >
-                <path
-                  d="m3 20 7-14 4 8 3-5 4 11H3Z"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-
-              <span>
-                {{ membership.groupName }}
-                ({{ roleLabel(membership.role) }})
-              </span>
-            </span>
+          @if (canRemove(m)) {
+            <button class="btn btn-ghost btn-sm" type="button" (click)="remove(m)">
+              {{ m.user_id === currentUser()?.id ? 'Salir' : 'Retirar' }}
+            </button>
           }
         </div>
-      </div>
+      </article>
     }
   </div>
+}
 
-  @if (participants().length === 0) {
-    <div class="card empty-state">
-      <svg
-        class="ui-icon"
-        width="48"
-        height="48"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
-        style="margin: 0 auto 16px; opacity: 0.4;"
-      >
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
+@if (showAdd()) {
+  <div class="modal-overlay" (click)="showAdd.set(false)">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <h3>Agregar participante</h3>
+      <p class="permissions-note">Solo aparecen miembros del grupo que todavía no están en el viaje.</p>
 
-      <h3>No hay participantes</h3>
+      @for (member of candidates(); track member.user_id) {
+        <div class="member-row">
+          <span>{{ member.full_name }} · &#64;{{ member.username }}</span>
+          <div class="context-actions">
+            <button class="btn btn-outline btn-sm" type="button" (click)="add(member, 'MEMBER')">
+              Agregar
+            </button>
+            @if (isOwner()) {
+              <button class="btn btn-ghost btn-sm" type="button" (click)="add(member, 'ORGANIZER')">
+                Como organizador
+              </button>
+            }
+          </div>
+        </div>
+      }
 
-      <p>
-        No se encontraron miembros en tus grupos.
-      </p>
+      @if (!candidates().length) {
+        <p class="empty-state">No hay miembros disponibles para agregar.</p>
+      }
+
+      <div class="modal-actions">
+        <button class="btn btn-primary" type="button" (click)="showAdd.set(false)">
+          Cerrar
+        </button>
+      </div>
     </div>
-  }
+  </div>
 }

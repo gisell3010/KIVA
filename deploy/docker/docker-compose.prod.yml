@@ -1,0 +1,107 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kiva-postgres-prod
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kivadb}
+      POSTGRES_USER: ${POSTGRES_USER:-kiva_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-kiva_user} -d ${POSTGRES_DB:-kivadb}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - kiva-network
+
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+
+    container_name: kiva-backend-prod
+
+    environment:
+      APP_ENV: production
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-kivadb}
+      DB_USER: ${POSTGRES_USER:-kiva_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      JWT_SECRET: ${JWT_SECRET}
+
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+
+    volumes:
+      - backend_uploads:/app/uploads
+
+    expose:
+      - "8000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - kiva-network
+
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile.prod
+
+    container_name: kiva-frontend-prod
+
+    expose:
+      - "80"
+
+    networks:
+      - kiva-network
+
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: kiva-nginx-prod
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ../nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/ssl:/etc/nginx/ssl:ro
+
+    depends_on:
+      - frontend
+      - backend
+
+    networks:
+      - kiva-network
+
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  backend_uploads:
+
+networks:
+  kiva-network:
+    driver: bridge

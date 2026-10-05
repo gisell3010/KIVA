@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../auth/auth.service';
+import { roleHomePath } from '../auth/role-home';
 
 export const authGuard: CanActivateFn = async (_route, state) => {
   const auth = inject(AuthService);
@@ -22,6 +23,10 @@ export const guestGuard: CanActivateFn = async () => {
 
   await auth.initialize();
 
-  return !auth.isAuthenticated()
-    || router.createUrlTree(['/dashboard']);
+  const user = auth.user();
+
+  return !user
+    || router.createUrlTree([
+      roleHomePath(user.role)
+    ]);
 };

@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response
 
@@ -31,12 +31,17 @@ def list_trips(
         int | None,
         Query(gt=0, le=2_147_483_647),
     ] = None,
+    status: Annotated[
+        Literal["PLANNING", "CONFIRMED", "COMPLETED", "CANCELLED"] | None,
+        Query(),
+    ] = None,
 ):
     return trip_service.list_trips(
         db,
         actor_id=user.id,
         pagination=pagination,
         group_id=group_id,
+        status=status,
     )
 
 

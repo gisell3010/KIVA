@@ -108,6 +108,12 @@ def _new_session(db: Session, user: User) -> AuthResult:
 
 def register(db: Session, data: RegisterRequest) -> AuthResult:
     try:
+        existing = db.scalar(select(User.id).where(
+            (User.username == data.username) | (User.email == str(data.email))
+        ).limit(1))
+        if existing is not None:
+            raise AppError("El correo o el nombre de usuario ya está registrado.", 409, "USER_ALREADY_EXISTS")
+
         user = User(
             full_name=data.full_name,
             username=data.username,

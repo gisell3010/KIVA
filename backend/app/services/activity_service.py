@@ -2,6 +2,7 @@ from sqlalchemy import select
 
 from app.models.activity import Activity
 from app.schemas.activity import ActivityRead
+from app.services.notification_service import notify_trip_members
 from app.services._shared import (
     MANAGERS,
     allow,
@@ -118,7 +119,19 @@ def update_activity(
             "INVALID_STATUS",
         )
 
+    previous_status = item.status
     apply_patch(item, data)
+
+    if item.status != previous_status and item.status in {"APPROVED", "CANCELLED"}:
+        label = "aprobada" if item.status == "APPROVED" else "cancelada"
+        notify_trip_members(
+            db,
+            trip_id=trip_id,
+            title="Actividad actualizada",
+            message=f'La actividad "{item.title}" fue {label} en {trip.name}.',
+            exclude_user_id=actor_id,
+        )
+
     audit(db, actor_id, "ACTIVITY_UPDATE", item)
 
     return saved(db, item, ActivityRead)

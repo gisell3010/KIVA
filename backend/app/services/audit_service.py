@@ -41,6 +41,7 @@ def list_audit_logs(
     actor_id: int,
     pagination: PaginationParams,
     user_id: int | None = None,
+    q: str | None = None,
     action: str | None = None,
     entity: str | None = None,
     entity_id: int | None = None,
@@ -74,11 +75,11 @@ def list_audit_logs(
             conditions.append(column == value)
 
     if created_from is not None:
-        created_from = as_utc(created_from).replace(tzinfo=None)
+        created_from = as_utc(created_from)
         conditions.append(AuditLog.created_at >= created_from)
 
     if created_to is not None:
-        created_to = as_utc(created_to).replace(tzinfo=None)
+        created_to = as_utc(created_to)
         conditions.append(AuditLog.created_at <= created_to)
 
     if created_from and created_to and created_from > created_to:
@@ -88,14 +89,23 @@ def list_audit_logs(
             "INVALID_DATES",
         )
 
+    if q and q.strip():
+        term = q.strip().lower()
+        matches = select(User.id).where(
+            func.lower(User.full_name).contains(term, autoescape=True)
+            | func.lower(User.username).contains(term, autoescape=True)
+        )
+        conditions.append(AuditLog.user_id.in_(matches))
+
     total = db.scalar(
         select(func.count())
         .select_from(AuditLog)
         .where(*conditions)
     ) or 0
 
-    entries = db.scalars(
-        select(AuditLog)
+    entries = db.execute(
+        select(AuditLog, User.full_name, User.role)
+        .outerjoin(User, User.id == AuditLog.user_id)
         .where(*conditions)
         .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
         .offset((pagination.page - 1) * pagination.page_size)
@@ -104,8 +114,11 @@ def list_audit_logs(
 
     return Page[AuditLogRead](
         items=[
-            AuditLogRead.model_validate(entry)
-            for entry in entries
+            AuditLogRead(
+                **AuditLogRead.model_validate(entry).model_dump(exclude={"actor_name", "actor_role"}),
+                actor_name=name, actor_role=role,
+            )
+            for entry, name, role in entries
         ],
         total=total,
         page=pagination.page,

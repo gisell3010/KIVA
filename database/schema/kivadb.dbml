@@ -7,7 +7,7 @@ Table auth.users {
   role varchar(20) [not null, default: 'USER']
   status varchar(20) [not null, default: 'ACTIVE']
   profile_image varchar(255)
-  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 }
 
 Table auth.auth_sessions {
@@ -23,7 +23,7 @@ Table app.travel_groups {
   id integer [pk, increment]
   name varchar(120) [not null]
   description varchar(300)
-  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 }
 
 Table app.group_members {
@@ -31,7 +31,7 @@ Table app.group_members {
   group_id integer [not null]
   user_id integer [not null]
   role varchar(20) [not null, default: 'MEMBER']
-  joined_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  joined_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   indexes {
     (group_id, user_id) [unique, name: 'uq_group_members']
   }
@@ -45,7 +45,7 @@ Table app.trips {
   start_date date
   end_date date
   status varchar(20) [not null, default: 'PLANNING']
-  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 }
 
 Table app.trip_members {
@@ -74,7 +74,7 @@ Table app.destination_photos {
   uploaded_by_user_id integer [not null]
   file_path varchar(255) [not null, unique]
   position integer [not null]
-  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   indexes {
     (destination_id, position) [unique, name: 'uq_destination_photos_position']
   }
@@ -122,7 +122,7 @@ Table app.polls {
   trip_id integer [not null]
   question varchar(250) [not null]
   status varchar(20) [not null, default: 'OPEN']
-  closes_at timestamp
+  closes_at timestamptz
 }
 
 Table app.poll_options {
@@ -139,7 +139,7 @@ Table app.votes {
   id integer [pk, increment]
   user_id integer [not null]
   option_id integer [not null]
-  voted_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  voted_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   indexes {
     (option_id, user_id) [unique, name: 'uq_votes_option_user']
   }
@@ -167,7 +167,7 @@ Table app.notifications {
   title varchar(150) [not null]
   message varchar(300) [not null]
   is_read boolean [not null, default: false]
-  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 }
 
 Table audit.audit_logs {
@@ -176,7 +176,7 @@ Table audit.audit_logs {
   action varchar(100) [not null]
   entity varchar(80)
   entity_id integer
-  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 }
 
 Ref fk_auth_sessions_user: auth.auth_sessions.user_id > auth.users.id [delete: cascade]
@@ -202,4 +202,4 @@ Ref fk_votes_option: app.votes.option_id > app.poll_options.id [delete: cascade]
 Ref fk_reservations_trip: app.reservations.trip_id > app.trips.id [delete: cascade]
 Ref fk_reservations_type: app.reservations.type_id > app.reservation_types.id [delete: restrict]
 Ref fk_notifications_user: app.notifications.user_id > auth.users.id [delete: cascade]
-Ref fk_audit_logs_user: audit.audit_logs.user_id > auth.users.id [delete: set null]
+Ref fk_audit_logs_user: audit.audit_logs.user_id >? auth.users.id [delete: set null]

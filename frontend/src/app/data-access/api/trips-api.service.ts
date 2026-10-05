@@ -9,7 +9,7 @@ export class TripsApiService {
   private readonly http = inject(HttpClient);
   private readonly url = `${environment.apiUrl}/trips`;
 
-  list(filters: M.Pagination & { group_id?: number } = {}) {
+  list(filters: M.Pagination & { group_id?: number; status?: M.TripStatus } = {}) {
     return this.http.get<M.Page<M.TripRead>>(this.url, {
       params: apiParams(filters),
     });

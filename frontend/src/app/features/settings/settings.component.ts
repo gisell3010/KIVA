@@ -1,6 +1,7 @@
 import { Component, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { ThemeService, ThemeMode } from '../../core/theme/theme.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { UsersApiService } from '../../data-access/api/users-api.service';
@@ -18,10 +19,7 @@ interface ThemeOption {
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterLink
-  ],
+  imports: [CommonModule, RouterLink, FormsModule],
   template: `
     <div class="settings-page">
       <div class="page-head">
@@ -148,91 +146,68 @@ interface ThemeOption {
           <div class="setting-divider"></div>
 
           <div class="setting-group">
-            <label class="setting-label">
-              Correo electrónico
-            </label>
-
-            <div class="account-info">
-              <div
-                class="avatar avatar-lg"
-                style="background: var(--accent-cyan)"
-              >
-                <svg
-                  class="ui-icon"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                  />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
-              </div>
-
-              <div>
-                <div class="account-name">
-                  {{ currentUser()?.email }}
-                </div>
-
-                <div class="account-help">
-                  Correo asociado a tu cuenta
-                </div>
-              </div>
-            </div>
+            <label class="setting-label">Correo electrónico</label>
+            <form class="account-form" (ngSubmit)="changeEmail()">
+              <input
+                class="form-input"
+                type="email"
+                name="newEmail"
+                autocomplete="email"
+                required
+                [ngModel]="emailForm().email"
+                (ngModelChange)="setEmailField('email', $event)"
+                aria-label="Nuevo correo electrónico"
+              />
+              <input
+                class="form-input"
+                type="password"
+                name="emailPassword"
+                autocomplete="current-password"
+                required
+                [ngModel]="emailForm().current_password"
+                (ngModelChange)="setEmailField('current_password', $event)"
+                placeholder="Contraseña actual"
+                aria-label="Contraseña actual para cambiar el correo"
+              />
+              <button class="btn btn-outline" type="submit" [disabled]="savingEmail()">
+                {{ savingEmail() ? 'Actualizando...' : 'Actualizar correo' }}
+              </button>
+            </form>
           </div>
 
           <div class="setting-divider"></div>
 
           <div class="setting-group">
-            <label class="setting-label">
-              Contraseña
-            </label>
-
-            <div class="account-info">
-              <div
-                class="avatar avatar-lg"
-                style="background: var(--accent-purple)"
-              >
-                <svg
-                  class="ui-icon"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  aria-hidden="true"
-                >
-                  <rect
-                    x="3"
-                    y="11"
-                    width="18"
-                    height="11"
-                    rx="2"
-                    ry="2"
-                  />
-
-                  <path
-                    d="M7 11V7a5 5 0 0 1 10 0v4"
-                  />
-                </svg>
-              </div>
-
-              <div>
-                <div class="account-name">
-                  Contraseña protegida
-                </div>
-
-                <div class="account-help">
-                  La contraseña no se modifica desde esta pantalla
-                </div>
-              </div>
-            </div>
+            <label class="setting-label">Contraseña</label>
+            <form class="account-form" (ngSubmit)="changePassword()">
+              <input
+                class="form-input"
+                type="password"
+                name="currentPassword"
+                autocomplete="current-password"
+                required
+                [ngModel]="passwordForm().current_password"
+                (ngModelChange)="setPasswordField('current_password', $event)"
+                placeholder="Contraseña actual"
+              />
+              <input
+                class="form-input"
+                type="password"
+                name="newPassword"
+                autocomplete="new-password"
+                required
+                minlength="10"
+                [ngModel]="passwordForm().new_password"
+                (ngModelChange)="setPasswordField('new_password', $event)"
+                placeholder="Nueva contraseña (mínimo 10 caracteres)"
+              />
+              <button class="btn btn-outline" type="submit" [disabled]="savingPassword()">
+                {{ savingPassword() ? 'Actualizando...' : 'Cambiar contraseña' }}
+              </button>
+            </form>
+            @if (accountMessage()) {
+              <p class="account-message" role="status">{{ accountMessage() }}</p>
+            }
           </div>
 
           <div class="setting-divider"></div>
@@ -647,6 +622,7 @@ export class SettingsComponent {
   private readonly themeService = inject(ThemeService);
   private readonly authService = inject(AuthService);
   private readonly usersApi = inject(UsersApiService);
+  private readonly router = inject(Router);
 
   readonly currentTheme = this.themeService.currentTheme;
   readonly currentUser = this.authService.user;
@@ -687,8 +663,20 @@ export class SettingsComponent {
   readonly reduceMotion = signal(false);
   readonly highContrast = signal(false);
   readonly loggingOutAll = signal(false);
+  readonly savingEmail = signal(false);
+  readonly savingPassword = signal(false);
+  readonly accountMessage = signal<string | null>(null);
+  readonly emailForm = signal({ email: '', current_password: '' });
+  readonly passwordForm = signal({ current_password: '', new_password: '' });
 
   constructor() {
+    effect(() => {
+      const email = this.currentUser()?.email ?? '';
+      if (!this.emailForm().current_password) {
+        this.emailForm.update(value => ({ ...value, email }));
+      }
+    });
+
     effect(() => {
       document.documentElement.classList.toggle(
         'reduce-motion',
@@ -732,6 +720,52 @@ export class SettingsComponent {
       },
       error: () => {
         this.loggingOutAll.set(false);
+      }
+    });
+  }
+
+
+  setEmailField(field: 'email' | 'current_password', value: string): void {
+    this.emailForm.update(current => ({ ...current, [field]: value }));
+  }
+
+  setPasswordField(field: 'current_password' | 'new_password', value: string): void {
+    this.passwordForm.update(current => ({ ...current, [field]: value }));
+  }
+
+  changeEmail(): void {
+    const data = this.emailForm();
+    if (!data.email.trim() || !data.current_password) return;
+    this.savingEmail.set(true);
+    this.accountMessage.set(null);
+    this.usersApi.changeEmail({
+      email: data.email.trim(),
+      current_password: data.current_password
+    }).subscribe({
+      next: () => {
+        this.savingEmail.set(false);
+        this.router.navigate(['/login'], { queryParams: { accountUpdated: 'email' } });
+      },
+      error: () => {
+        this.savingEmail.set(false);
+        this.accountMessage.set('No se pudo actualizar el correo. Verifica tu contraseña y el correo ingresado.');
+      }
+    });
+  }
+
+  changePassword(): void {
+    const data = this.passwordForm();
+    if (!data.current_password || data.new_password.length < 10) return;
+    this.savingPassword.set(true);
+    this.accountMessage.set(null);
+    this.usersApi.changePassword(data).subscribe({
+      next: () => {
+        this.savingPassword.set(false);
+        this.router.navigate(['/login'], { queryParams: { accountUpdated: 'password' } });
+      },
+      error: () => {
+        this.savingPassword.set(false);
+        this.accountMessage.set('No se pudo cambiar la contraseña. Verifica la contraseña actual y los requisitos de la nueva.');
       }
     });
   }

@@ -3,12 +3,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
-
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
-
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -17,7 +15,6 @@ class Settings(BaseSettings):
         extra="ignore",
         hide_input_in_errors=True,
     )
-
     APP_NAME: str = "KIVA API"
     APP_ENV: Literal["development", "test", "production"] = "development"
     API_PREFIX: Literal["/api"] = "/api"
@@ -47,7 +44,11 @@ class Settings(BaseSettings):
         "testserver",
     ])
 
+    IMAGE_STORAGE: Literal["local", "cloudinary"] = "local"
     UPLOADS_DIR: Path = BACKEND_DIR / "uploads"
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: SecretStr = SecretStr("")
+    CLOUDINARY_API_SECRET: SecretStr = SecretStr("")
     MAX_IMAGE_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
     MAX_DESTINATION_PHOTOS: int = Field(default=10, ge=1)
 
@@ -109,6 +110,15 @@ class Settings(BaseSettings):
     def validate_environment(self):
         if self.APP_ENV == "test" and not self.DB_NAME.endswith("_test"):
             raise ValueError("La base de pruebas debe terminar en _test.")
+
+        if self.IMAGE_STORAGE == "cloudinary" and (
+            not self.CLOUDINARY_CLOUD_NAME
+            or not self.CLOUDINARY_API_KEY.get_secret_value()
+            or not self.CLOUDINARY_API_SECRET.get_secret_value()
+        ):
+            raise ValueError(
+                "Cloudinary requiere CLOUD_NAME, API_KEY y API_SECRET."
+            )
 
         if self.APP_ENV == "production":
             if not self.CORS_ORIGINS or any(

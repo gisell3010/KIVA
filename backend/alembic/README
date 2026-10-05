@@ -1,0 +1,56 @@
+# Migraciones de Alembic para KIVA
+
+Alembic está configurado para trabajar con los modelos SQLAlchemy de KIVA y con los esquemas `auth`, `app` y `audit`.
+
+## Estado actual
+
+La estructura inicial de la base se instala mediante:
+
+```text
+database/install.sql
+```
+
+En el estado actual del proyecto, `alembic/versions/` no contiene todavía una revisión baseline. Por esta razón, no debe generarse una migración incremental hasta coordinar Alembic con el esquema inicial definitivo.
+
+La tabla de control de versiones se ubicará en:
+
+```text
+auth.alembic_version
+```
+
+## Después de establecer la línea base
+
+Desde `backend/`:
+
+```powershell
+alembic revision --autogenerate -m "descripcion_cambio"
+alembic upgrade head
+```
+
+Otros comandos útiles:
+
+```powershell
+alembic current
+alembic history --verbose
+alembic downgrade -1
+```
+
+## Estructura
+
+```text
+alembic/
+├── env.py
+├── script.py.mako
+├── README
+└── versions/
+```
+
+## Convenciones
+
+1. Mantener los modelos SQLAlchemy sincronizados con el esquema PostgreSQL.
+2. Revisar siempre el archivo generado por `--autogenerate` antes de aplicarlo.
+3. Cada revisión debe tener `upgrade()` y `downgrade()` coherentes.
+4. No crear manualmente identificadores de revisión.
+5. Mantener `include_schemas=True` y `version_table_schema="auth"`.
+6. No utilizar Alembic para ocultar inconsistencias de una base local desechable antes de consolidar el esquema inicial.
+7. Una vez desplegada una versión, los cambios estructurales posteriores deben realizarse mediante migraciones y no editando directamente la base existente.

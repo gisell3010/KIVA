@@ -5,10 +5,14 @@ node_modules/
 /frontend/out-tsc/
 /frontend/bazel-out/
 /frontend/.angular/
+/frontend/.cache/
 /frontend/coverage/
 /frontend/playwright-report/
 /frontend/test-results/
 /frontend/blob-report/
+/frontend/.playwright/
+*.tsbuildinfo
+.eslintcache
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -45,7 +49,7 @@ htmlcov/
 *.key
 /secrets/
 
-# Imágenes cargadas
+# Archivos cargados por usuarios
 /backend/uploads/*
 !/backend/uploads/profiles/
 !/backend/uploads/destinations/
@@ -73,6 +77,8 @@ Desktop.ini
 *.dump
 *.backup
 *.sql.gz
+*.sqlite
+*.sqlite3
 /backups/
 
 # Ajustes locales de Docker

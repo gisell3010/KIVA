@@ -2,22 +2,27 @@ import { Component, ElementRef, HostListener, inject, signal } from '@angular/co
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
+import { UserAvatarComponent } from '../user-avatar/user-avatar.component';
 
 @Component({
   selector: 'app-profile-dropdown',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, UserAvatarComponent],
   template: `
     <div class="profile-dropdown">
       <button
         type="button"
-        class="avatar avatar-sm profile-trigger"
-        style="background: var(--accent-blue)"
+        class="profile-trigger"
         [attr.aria-expanded]="isOpen()"
         [attr.aria-label]="'Menú de usuario: ' + (currentUser()?.full_name || 'Usuario')"
         (click)="toggle()"
       >
-        {{ userInitials() }}
+        <app-user-avatar
+          [userId]="currentUser()?.id ?? 0"
+          [fullName]="currentUser()?.full_name || 'Usuario'"
+          [profileImage]="currentUser()?.profile_image ?? null"
+          size="34px"
+        ></app-user-avatar>
       </button>
 
       @if (isOpen()) {
@@ -27,12 +32,12 @@ import { AuthService } from '../../../core/auth/auth.service';
           (click)="$event.stopPropagation()"
         >
           <div class="dropdown-user">
-            <div
-              class="avatar avatar-md"
-              style="background: var(--accent-blue)"
-            >
-              {{ userInitials() }}
-            </div>
+            <app-user-avatar
+              [userId]="currentUser()?.id ?? 0"
+              [fullName]="currentUser()?.full_name || 'Usuario'"
+              [profileImage]="currentUser()?.profile_image ?? null"
+              size="40px"
+            ></app-user-avatar>
 
             <div class="user-info">
               <div class="user-name">
@@ -181,9 +186,17 @@ import { AuthService } from '../../../core/auth/auth.service';
     }
 
     .profile-trigger {
-      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      padding: 0;
       border: 2px solid transparent;
-      transition: border-color 0.15s ease;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     .profile-trigger:hover {

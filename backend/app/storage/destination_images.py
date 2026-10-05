@@ -5,7 +5,7 @@ from typing import BinaryIO
 from app.core.exceptions import AppError
 from app.storage import _images
 
-_KEY_PATTERN = re.compile(r"destinations/[0-9a-f]{48}\.jpg")
+_KEY_PATTERN = re.compile(r"(?:destinations/[0-9a-f]{48}\.jpg|cloudinary:kiva/destinations/[0-9a-f]{48})")
 
 
 def _validate_key(key: str) -> None:
@@ -21,7 +21,7 @@ def store_image(stream: BinaryIO) -> str:
     return _images.store_image(stream, "destinations")
 
 
-def existing_image(key: str) -> Path:
+def existing_image(key: str) -> Path | bytes:
     _validate_key(key)
     return _images.existing_image(key)
 

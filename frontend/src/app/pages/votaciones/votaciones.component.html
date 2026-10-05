@@ -1,48 +1,93 @@
 <div class="page-head">
   <div>
     <h1 class="page-title">Votaciones</h1>
-
     <p class="page-subtitle">
-      Decidan juntos los detalles del viaje.
+      Tomen decisiones juntos y comparen las preferencias del viaje.
     </p>
   </div>
 
-  <div class="head-actions">
-    <div class="group-select">
-      <svg
-        class="ui-icon"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.75"
-        aria-hidden="true"
-      >
-        <path
-          d="m3 20 7-14 4 8 3-5 4 11H3Z"
+  @if (canManage() && selectedTripId()) {
+    <button class="btn btn-primary" type="button" (click)="openCreatePoll()">
+      Nueva votación
+    </button>
+  }
+</div>
+
+<section class="trip-context-card">
+  <div class="trip-cover">
+    @if (coverPhotoSrc(); as cover) {
+      <app-private-image
+        [src]="cover"
+        [alt]="coverDestinationLabel() ? 'Foto de ' + coverDestinationLabel() : 'Portada del viaje'"
+        width="100%"
+        height="100%"
+        objectFit="cover"
+        borderRadius="0"
+      ></app-private-image>
+    } @else {
+      <div class="trip-cover-fallback" [class.loading]="coverLoading()">
+        <svg
+          class="trip-cover-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
           stroke-linecap="round"
           stroke-linejoin="round"
-        />
-      </svg>
+          aria-hidden="true"
+        >
+          <path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Z" />
+          <circle cx="12" cy="9" r="2.4" />
+        </svg>
+      </div>
+    }
+  </div>
 
+  <div class="trip-context-content">
+    <span class="context-eyebrow">Viaje seleccionado</span>
+
+    @if (currentTrip(); as trip) {
+      <div class="trip-context-heading">
+        <div>
+          <h2>{{ trip.name }}</h2>
+          <p>
+            {{ coverDestinationLabel() || trip.description || 'Planificación colaborativa del viaje.' }}
+          </p>
+        </div>
+
+        <span class="role-chip">{{ roleLabel(trip.my_role) }}</span>
+      </div>
+
+      <div class="trip-context-meta">
+        <span>{{ groupName(trip.group_id) }}</span>
+        <span aria-hidden="true">·</span>
+        <span>{{ trip.members_count }} participantes</span>
+        <span aria-hidden="true">·</span>
+        <span>{{ trip.selected_destinations_count }} destinos seleccionados</span>
+      </div>
+    } @else {
+      <h2>Selecciona un viaje</h2>
+      <p>Elige un viaje para consultar sus votaciones y resultados.</p>
+    }
+
+    <label class="trip-select-control">
+      <span>Viaje</span>
       <select
-        aria-label="Viaje"
         [value]="selectedTripId() ?? ''"
         [disabled]="loading()"
         (change)="onTripSelect($event)"
       >
-        <option value="">
-          Seleccionar un viaje
-        </option>
+        <option value="">Seleccionar un viaje</option>
 
         @for (trip of trips(); track trip.id) {
           <option [value]="trip.id">
-            {{ trip.name }} ({{ groupName(trip.group_id) }})
+            {{ trip.name }} · {{ groupName(trip.group_id) }}
           </option>
         }
       </select>
-    </div>
+    </label>
   </div>
-</div>
+</section>
 
 @if (error()) {
   <div class="error-banner" role="alert">
@@ -59,16 +104,12 @@
       <circle cx="12" cy="12" r="10" />
       <path d="M12 8v4M12 16h.01" />
     </svg>
-
     {{ error() }}
   </div>
 }
 
 @if (selectedPoll(); as poll) {
-  <div
-    class="poll-results-modal"
-    (click)="closePoll()"
-  >
+  <div class="poll-results-modal" (click)="closePoll()">
     <div
       class="poll-results-content"
       role="dialog"
@@ -78,14 +119,8 @@
     >
       <div class="poll-results-header">
         <div>
-          <h3 id="poll-detail-title">
-            {{ poll.question }}
-          </h3>
-
-          <span
-            class="badge"
-            [ngClass]="statusBadge(poll.status)"
-          >
+          <h3 id="poll-detail-title">{{ poll.question }}</h3>
+          <span class="badge" [ngClass]="statusBadge(poll.status)">
             {{ statusLabel(poll.status) }}
           </span>
         </div>
@@ -128,10 +163,7 @@
               (click)="toggleOption(option.id)"
             >
               <div class="result-option-info">
-                <span>
-                  {{ option.option_text }}
-                </span>
-
+                <span>{{ option.option_text }}</span>
                 <span class="result-votes">
                   {{ resultFor(option.id)?.votes_count || 0 }} votos
                 </span>
@@ -169,7 +201,6 @@
             >
               Cerrar
             </button>
-
             <button
               type="button"
               class="btn btn-primary"
@@ -199,7 +230,6 @@
     >
       <path d="M21 12a9 9 0 11-6.219-8.56" />
     </svg>
-
     <p>Cargando votación...</p>
   </div>
 }
@@ -211,18 +241,12 @@
         <span class="badge badge-gray">
           {{ tripName(poll.trip_id) }}
         </span>
-
-        <span
-          class="badge"
-          [ngClass]="statusBadge(poll.status)"
-        >
+        <span class="badge" [ngClass]="statusBadge(poll.status)">
           {{ statusLabel(poll.status) }}
         </span>
       </div>
 
-      <h3>
-        {{ poll.question }}
-      </h3>
+      <h3>{{ poll.question }}</h3>
 
       <p class="votacion-desc">
         {{
@@ -244,6 +268,25 @@
               : 'Ver resultados'
           }}
         </button>
+
+        @if (canManage()) {
+          @if (poll.status === 'OPEN') {
+            <button
+              class="btn btn-ghost btn-sm"
+              type="button"
+              (click)="closeManagedPoll(poll)"
+            >
+              Cerrar votación
+            </button>
+          }
+          <button
+            class="btn btn-ghost btn-sm"
+            type="button"
+            (click)="deleteManagedPoll(poll)"
+          >
+            Eliminar
+          </button>
+        }
       </div>
     </div>
   }
@@ -262,14 +305,7 @@
       aria-hidden="true"
       style="margin: 0 auto 16px; opacity: 0.4;"
     >
-      <rect
-        x="3"
-        y="4"
-        width="18"
-        height="16"
-        rx="2"
-      />
-
+      <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="m7.5 12 2.5 2.5L15.5 9" />
     </svg>
 
@@ -282,6 +318,90 @@
         Este viaje no tiene votaciones todavía.
       }
     </p>
+  </div>
+}
+
+@if (showCreate()) {
+  <div class="modal-overlay" (click)="closeCreatePoll()">
+    <div
+      class="modal-box"
+      role="dialog"
+      aria-modal="true"
+      (click)="$event.stopPropagation()"
+    >
+      <h3>Nueva votación</h3>
+      <form class="context-form" (ngSubmit)="createPoll()">
+        <label>
+          Pregunta
+          <input
+            class="form-input"
+            name="question"
+            required
+            maxlength="250"
+            [ngModel]="pollForm().question"
+            (ngModelChange)="setPollQuestion($event)"
+          />
+        </label>
+
+        <label>
+          Fecha y hora de cierre (opcional)
+          <input
+            class="form-input"
+            type="datetime-local"
+            name="deadline"
+            [ngModel]="pollForm().closes_at"
+            (ngModelChange)="setPollDeadline($event)"
+          />
+        </label>
+
+        <fieldset>
+          <legend>Opciones</legend>
+
+          @for (option of pollForm().options; track $index) {
+            <div class="context-actions">
+              <input
+                class="form-input"
+                [name]="'option' + $index"
+                required
+                maxlength="200"
+                [ngModel]="option"
+                (ngModelChange)="setPollOption($index, $event)"
+              />
+              @if (pollForm().options.length > 2) {
+                <button
+                  class="btn btn-ghost btn-sm"
+                  type="button"
+                  (click)="removePollOption($index)"
+                >
+                  Quitar
+                </button>
+              }
+            </div>
+          }
+
+          <button
+            class="btn btn-outline btn-sm"
+            type="button"
+            (click)="addPollOption()"
+          >
+            Agregar opción
+          </button>
+        </fieldset>
+
+        <div class="modal-actions">
+          <button class="btn btn-ghost" type="button" (click)="closeCreatePoll()">
+            Cancelar
+          </button>
+          <button
+            class="btn btn-primary"
+            type="submit"
+            [disabled]="savingPoll()"
+          >
+            {{ savingPoll() ? 'Creando...' : 'Crear votación' }}
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 }
 
@@ -299,7 +419,6 @@
     >
       <path d="M21 12a9 9 0 11-6.219-8.56" />
     </svg>
-
     <p>Cargando votaciones...</p>
   </div>
 }

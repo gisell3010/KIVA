@@ -96,8 +96,16 @@ def list_events(
                 )
             )
 
-    lower = datetime.combine(start_date, time.min)
-    upper = datetime.combine(end_date, time.max)
+    lower = datetime.combine(
+        start_date,
+        time.min,
+        tzinfo=timezone.utc,
+    )
+    upper = datetime.combine(
+        end_date,
+        time.max,
+        tzinfo=timezone.utc,
+    )
 
     for poll in db.scalars(
         select(Poll).where(
@@ -111,9 +119,7 @@ def list_events(
                 source_type="POLL",
                 source_id=poll.id,
                 title=poll.question,
-                deadline_at=poll.closes_at.replace(
-                    tzinfo=timezone.utc
-                ),
+                deadline_at=poll.closes_at,
             )
         )
 

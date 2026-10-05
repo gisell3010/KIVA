@@ -1,35 +1,17 @@
 from typing import Annotated
-
 from fastapi import APIRouter, File, Response, UploadFile
+from pathlib import Path
 from fastapi.responses import FileResponse
-
-from app.api.dependencies import (
-    CurrentUser,
-    DbSession,
-    Pagination,
-    PathId,
-)
+from app.api.dependencies import (CurrentUser, DbSession, Pagination, PathId)
 from app.schemas.common import Page
-from app.schemas.destination import (
-    DestinationCreate,
-    DestinationRead,
-    DestinationSelection,
-    DestinationUpdate,
-)
-from app.schemas.destination_photo import (
-    DestinationPhotoRead,
-    DestinationPhotoReorder,
-)
-from app.services import (
-    destination_photo_service,
-    destination_service,
-)
+from app.schemas.destination import (DestinationCreate, DestinationRead, DestinationSelection, DestinationUpdate)
+from app.schemas.destination_photo import (DestinationPhotoRead, DestinationPhotoReorder)
+from app.services import (destination_photo_service, destination_service)
 
 router = APIRouter(
     prefix="/trips/{trip_id}/destinations",
     tags=["Destinos"],
 )
-
 
 @router.get("", response_model=Page[DestinationRead])
 def list_destinations(
@@ -211,7 +193,7 @@ def get_photo_file(
     db: DbSession,
     user: CurrentUser,
 ):
-    path = destination_photo_service.get_photo_file(
+    image = destination_photo_service.get_photo_file(
         db,
         actor_id=user.id,
         trip_id=trip_id,
@@ -219,10 +201,17 @@ def get_photo_file(
         photo_id=photo_id,
     )
 
-    return FileResponse(
-        path,
+    if isinstance(image, Path):
+        return FileResponse(
+            image,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-store"},
+        )
+
+    return Response(
+        content=image,
         media_type="image/jpeg",
-        headers={"Cache-Control": "no-store"},
+        headers={"Cache-Control": "private, max-age=300"},
     )
 
 

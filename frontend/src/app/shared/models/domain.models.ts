@@ -402,6 +402,8 @@ export interface CalendarFilters {
 }
 
 export interface AuditLogRead {
+  actor_name: string | null;
+  actor_role: GlobalRole | null;
   id: number;
   user_id: number | null;
   action: string;
@@ -411,6 +413,7 @@ export interface AuditLogRead {
 }
 
 export interface AuditFilters extends Pagination {
+  q?: string;
   user_id?: number;
   action?: string;
   entity?: string;

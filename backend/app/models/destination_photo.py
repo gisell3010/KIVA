@@ -1,8 +1,15 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    CheckConstraint, DateTime, ForeignKey, Identity, Index,
-    Integer, String, UniqueConstraint, text,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,11 +28,15 @@ class DestinationPhoto(Base):
             "position > 0",
             name="chk_destination_photos_position",
         ),
-        Index("idx_destination_photos_user", "uploaded_by_user_id"),
+        Index(
+            "idx_destination_photos_user",
+            "uploaded_by_user_id",
+        ),
         {"schema": "app"},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
+
     destination_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(
@@ -34,6 +45,7 @@ class DestinationPhoto(Base):
             ondelete="CASCADE",
         ),
     )
+
     uploaded_by_user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(
@@ -42,9 +54,15 @@ class DestinationPhoto(Base):
             ondelete="RESTRICT",
         ),
     )
-    file_path: Mapped[str] = mapped_column(String(255), unique=True)
+
+    file_path: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+    )
+
     position: Mapped[int] = mapped_column(Integer)
+
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
     )

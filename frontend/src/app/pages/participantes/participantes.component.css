@@ -19,10 +19,22 @@
   justify-content: space-between;
 }
 
-.avatar-lg { width: 52px; height: 52px; font-size: 1rem; }
+.avatar-lg {
+  width: 52px;
+  height: 52px;
+  font-size: 1rem;
+}
 
-.user-nombre { font-size: 1rem; font-weight: 700; }
-.user-email { font-size: 0.8rem; color: var(--text-muted); margin: -6px 0 4px; }
+.user-nombre {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.user-email {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: -6px 0 4px;
+}
 
 .user-grupos {
   display: flex;
@@ -42,4 +54,17 @@
   padding: 4px 9px;
   border-radius: 999px;
 }
-.chip-empty { color: var(--text-muted); font-style: italic; }
+
+.chip-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.member-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}

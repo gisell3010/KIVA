@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.models.reservation import Reservation
 from app.schemas.reservation import ReservationRead
 from app.services.catalog_service import get_reservation_type
+from app.services.notification_service import notify_trip_members
 from app.services._shared import (
     MANAGERS,
     allow,
@@ -70,6 +71,15 @@ def create_reservation(db, *, actor_id, trip_id, data):
 
     db.add(item)
     result = saved(db, item, ReservationRead)
+
+    notify_trip_members(
+        db,
+        trip_id=trip_id,
+        title="Nueva reserva",
+        message=f'Se registró la reserva "{item.title}" en {trip.name}.',
+        exclude_user_id=actor_id,
+    )
+
     audit(db, actor_id, "RESERVATION_CREATE", item)
 
     return result
@@ -113,7 +123,26 @@ def update_reservation(
             "INVALID_STATUS",
         )
 
+    previous_status = item.status
     apply_patch(item, data)
+
+    if item.status != previous_status:
+        status_labels = {
+            "PENDING": "Pendiente",
+            "CONFIRMED": "Confirmada",
+            "CANCELLED": "Cancelada",
+        }
+        notify_trip_members(
+            db,
+            trip_id=trip_id,
+            title="Reserva actualizada",
+            message=(
+                f'La reserva "{item.title}" ahora está '
+                f'{status_labels.get(item.status, item.status).lower()}.'
+            ),
+            exclude_user_id=actor_id,
+        )
+
     audit(db, actor_id, "RESERVATION_UPDATE", item)
 
     return saved(db, item, ReservationRead)

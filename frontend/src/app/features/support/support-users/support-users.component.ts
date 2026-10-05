@@ -23,7 +23,7 @@ import { formatDate } from '../../../shared/utils/date.utils';
           </h1>
 
           <p class="page-subtitle">
-            Vista de solo lectura para asistencia al usuario.
+            Consulta cuentas, diagnostica incidencias y protege el acceso.
           </p>
         </div>
 
@@ -401,6 +401,7 @@ import { formatDate } from '../../../shared/utils/date.utils';
             </div>
 
 
+            <a class="btn btn-outline" routerLink="/soporte/diagnostico" [queryParams]="{ user: user.id }">Consultar grupos y viajes</a>
             <div class="modal-actions">
 
               <button

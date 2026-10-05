@@ -254,8 +254,10 @@ def visible_trips(actor_id):
         )
     )
 
+
 def utc_now():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(timezone.utc)
+
 
 def mapped_page(db, statement, pagination, schema):
     total = db.scalar(

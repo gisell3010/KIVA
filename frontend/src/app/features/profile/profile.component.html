@@ -31,13 +31,13 @@
   <div class="profile-grid">
     <section class="card profile-header-section">
       <div class="profile-header">
-        <app-private-image
-          src="/users/me/profile-image"
-          [alt]="currentUser()?.full_name || 'Perfil'"
-          width="120px"
-          height="120px"
-          borderRadius="50%"
-        ></app-private-image>
+        <app-user-avatar
+          [userId]="currentUser()?.id ?? 0"
+          [fullName]="currentUser()?.full_name || 'Usuario'"
+          [profileImage]="currentUser()?.profile_image ?? null"
+          [refreshKey]="imageRevision()"
+          size="132px"
+        ></app-user-avatar>
 
         <div class="profile-header-info">
           <h2>
@@ -58,18 +58,28 @@
       </div>
 
       <div class="profile-image-upload">
+        <input
+          id="profileImageInput"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          class="profile-file-input"
+          [disabled]="uploadingImage()"
+          (change)="onImageSelected($event)"
+        />
+
         <label
-          class="btn btn-outline"
+          class="profile-photo-button"
           for="profileImageInput"
+          [class.is-loading]="uploadingImage()"
         >
           <svg
             class="ui-icon"
-            width="16"
-            height="16"
+            width="17"
+            height="17"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="1.75"
+            stroke-width="1.8"
             aria-hidden="true"
           >
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -77,51 +87,41 @@
             <line x1="12" x2="12" y1="3" y2="15" />
           </svg>
 
-          Cambiar foto
+          @if (uploadingImage()) {
+            Subiendo...
+          } @else if (currentUser()?.profile_image) {
+            Cambiar foto
+          } @else {
+            Subir foto
+          }
         </label>
 
-        <input
-          id="profileImageInput"
-          type="file"
-          accept="image/*"
-          class="sr-only"
-          [disabled]="uploadingImage()"
-          (change)="onImageSelected($event)"
-        />
-
-        @if (uploadingImage()) {
-          <span class="uploading-text">
-            Subiendo...
-          </span>
+        @if (currentUser()?.profile_image) {
+          <button
+            type="button"
+            class="profile-photo-remove"
+            [disabled]="uploadingImage()"
+            (click)="deleteImage()"
+          >
+            <svg
+              class="ui-icon"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="M3 6h18" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+            Eliminar foto
+          </button>
         }
 
-        <button
-          type="button"
-          class="btn btn-ghost btn-sm"
-          [disabled]="uploadingImage() || !currentUser()?.profile_image"
-          (click)="deleteImage()"
-        >
-          <svg
-            class="ui-icon"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.75"
-            aria-hidden="true"
-          >
-            <path d="M3 6h18" />
-            <path
-              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"
-            />
-            <path
-              d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-            />
-          </svg>
-
-          Eliminar foto
-        </button>
+        <p class="photo-help">JPEG, PNG o WEBP · máximo 5 MB</p>
       </div>
 
       <div class="profile-stats">
@@ -213,9 +213,7 @@
             disabled
           />
 
-          <span class="field-hint">
-            El correo no se puede cambiar desde esta pantalla.
-          </span>
+          <a class="field-hint" routerLink="/configuracion">Gestionar correo y contraseña</a>
         </div>
 
         <div class="form-actions">

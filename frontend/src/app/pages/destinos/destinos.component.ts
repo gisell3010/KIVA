@@ -1,222 +1,254 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { allPages } from '../../core/http/all-pages';
 import { CommonModule } from '@angular/common';
-import { DestinationsApiService } from '../../data-access/api/destinations-api.service';
-import { TripsApiService } from '../../data-access/api/trips-api.service';
-import { GroupsApiService } from '../../data-access/api/groups-api.service';
-import { TripRead, DestinationRead, DestinationPhotoRead, GroupRead } from '../../shared/models/domain.models';
-import { PrivateImageComponent } from '../../shared/components/private-image/private-image.component';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../core/auth/auth.service';
 import { ApiError } from '../../core/http/error.interceptor';
+import { DestinationsApiService } from '../../data-access/api/destinations-api.service';
+import { GroupsApiService } from '../../data-access/api/groups-api.service';
+import { TripsApiService } from '../../data-access/api/trips-api.service';
+import { PrivateImageComponent } from '../../shared/components/private-image/private-image.component';
+import {
+  DestinationCreate,
+  DestinationPhotoRead,
+  DestinationRead,
+  GroupRead,
+  TripRead,
+} from '../../shared/models/domain.models';
+import { isTripManager } from '../../shared/utils/permissions.utils';
 
 @Component({
   selector: 'app-destinos',
   standalone: true,
-  imports: [CommonModule, PrivateImageComponent],
+  imports: [CommonModule, FormsModule, PrivateImageComponent],
   templateUrl: './destinos.component.html',
-  styleUrl: './destinos.component.css'
+  styleUrl: './destinos.component.css',
 })
 export class DestinosComponent implements OnInit {
   private readonly destinationsApi = inject(DestinationsApiService);
   private readonly tripsApi = inject(TripsApiService);
   private readonly groupsApi = inject(GroupsApiService);
+  private readonly auth = inject(AuthService);
 
   readonly trips = signal<TripRead[]>([]);
   readonly groups = signal<GroupRead[]>([]);
   readonly destinations = signal<DestinationRead[]>([]);
   readonly photosCache = signal<Map<number, DestinationPhotoRead[]>>(new Map());
-
   readonly filterTrip = signal<number | null>(null);
   readonly loading = signal(false);
+  readonly saving = signal(false);
+  readonly uploadingDestinationId = signal<number | null>(null);
   readonly error = signal<string | null>(null);
+  readonly showForm = signal(false);
+  readonly editingId = signal<number | null>(null);
+  readonly form = signal<DestinationCreate>({ country: '', place_name: '', description: null });
 
-  readonly filteredDestinations = computed(() => this.destinations());
+  readonly currentUser = this.auth.user;
+  readonly selectedTrip = computed(
+    () => this.trips().find((t) => t.id === this.filterTrip()) ?? null,
+  );
+  readonly canManage = computed(() => isTripManager(this.selectedTrip()));
 
   ngOnInit(): void {
     this.loadGroups();
     this.loadTrips();
   }
 
-  loadTrips(): void {
-    this.tripsApi.list({
-      page: 1,
-      page_size: 100
-    }).subscribe({
-      next: page => {
-        this.trips.set(page.items);
-
-        if (
-          page.items.length > 0 &&
-          this.filterTrip() === null
-        ) {
-          const tripId = page.items[0].id;
-
-          this.filterTrip.set(tripId);
-          this.loadDestinations(tripId);
-        }
-      },
-
-      error: () => {
-        this.trips.set([]);
-        this.filterTrip.set(null);
-        this.destinations.set([]);
-        this.photosCache.set(new Map());
-
-        this.error.set(
-          'No se pudieron cargar los viajes.'
-        );
-      }
+  loadGroups(): void {
+    allPages(page => this.groupsApi.list({ page, page_size: 100 })).subscribe({
+      next: (p) => this.groups.set(p.items),
+      error: () => this.groups.set([]),
     });
   }
 
-  loadGroups(): void {
-    this.groupsApi.list({
-      page: 1,
-      page_size: 100
-    }).subscribe({
-      next: page => {
-        this.groups.set(page.items);
+  loadTrips(): void {
+    allPages(page => this.tripsApi.list({ page, page_size: 100 })).subscribe({
+      next: (p) => {
+        this.trips.set(p.items);
+        if (p.items.length && this.filterTrip() === null) {
+          this.filterTrip.set(p.items[0].id);
+          this.loadDestinations(p.items[0].id);
+        }
       },
-
-      error: () => {
-        this.groups.set([]);
-      }
+      error: () => this.fail('No se pudieron cargar los viajes.'),
     });
   }
 
   loadDestinations(tripId: number): void {
     this.loading.set(true);
     this.error.set(null);
-    this.destinations.set([]);
     this.photosCache.set(new Map());
-
-    this.destinationsApi.list(
-      tripId,
-      {
-        page: 1,
-        page_size: 100
-      }
-    ).subscribe({
-      next: page => {
-        this.destinations.set(page.items);
-
-        for (const destination of page.items) {
-          this.loadPhotos(
-            tripId,
-            destination.id
-          );
-        }
-
+    allPages(page => this.destinationsApi.list(tripId, { page, page_size: 100 })).subscribe({
+      next: (p) => {
+        this.destinations.set(p.items);
+        p.items.forEach((d) => this.loadPhotos(tripId, d.id));
         this.loading.set(false);
       },
-
-      error: (err: unknown) => {
+      error: (e) => {
         this.destinations.set([]);
-        this.photosCache.set(new Map());
-
-        if (err instanceof ApiError) {
-          this.error.set(err.message);
-        } else {
-          this.error.set(
-            'Error al cargar los destinos.'
-          );
-        }
-
         this.loading.set(false);
-      }
+        this.failError(e, 'Error al cargar los destinos.');
+      },
     });
   }
 
-  loadPhotos(
-    tripId: number,
-    destinationId: number
-  ): void {
-    this.destinationsApi
-      .photos(
-        tripId,
-        destinationId
-      )
-      .subscribe({
-        next: photos => {
-          this.photosCache.update(current => {
-            const updated = new Map(current);
-
-            updated.set(
-              destinationId,
-              photos
-            );
-
-            return updated;
-          });
-        },
-
-        error: () => {
-          this.photosCache.update(current => {
-            const updated = new Map(current);
-
-            updated.set(
-              destinationId,
-              []
-            );
-
-            return updated;
-          });
-        }
-      });
+  loadPhotos(tripId: number, destinationId: number): void {
+    this.destinationsApi.photos(tripId, destinationId).subscribe({
+      next: (photos) =>
+        this.photosCache.update((current) => new Map(current).set(destinationId, photos)),
+      error: () =>
+        this.photosCache.update((current) => new Map(current).set(destinationId, [])),
+    });
   }
 
   onTripSelect(event: Event): void {
-    const select =
-      event.target as HTMLSelectElement;
-
-    const value = select.value;
-
-    if (value === '') {
+    const id = Number((event.target as HTMLSelectElement).value);
+    this.closeForm();
+    if (!id) {
       this.filterTrip.set(null);
       this.destinations.set([]);
-      this.photosCache.set(new Map());
-      this.error.set(null);
       return;
     }
-
-    const tripId = parseInt(
-      value,
-      10
-    );
-
-    if (isNaN(tripId)) {
-      this.filterTrip.set(null);
-      this.destinations.set([]);
-      this.photosCache.set(new Map());
-      return;
-    }
-
-    this.filterTrip.set(tripId);
-    this.loadDestinations(tripId);
+    this.filterTrip.set(id);
+    this.loadDestinations(id);
   }
 
-  tripName(tripId: number): string {
-    return this.trips().find(
-      trip => trip.id === tripId
-    )?.name || 'Viaje';
+  openCreate(): void {
+    if (!this.filterTrip()) return;
+    this.editingId.set(null);
+    this.form.set({ country: '', place_name: '', description: null });
+    this.showForm.set(true);
+  }
+
+  openEdit(item: DestinationRead): void {
+    this.editingId.set(item.id);
+    this.form.set({
+      country: item.country,
+      place_name: item.place_name,
+      description: item.description,
+    });
+    this.showForm.set(true);
+  }
+
+  closeForm(): void {
+    this.showForm.set(false);
+    this.editingId.set(null);
+  }
+
+  setField(field: keyof DestinationCreate, value: string): void {
+    this.form.update((current) => ({
+      ...current,
+      [field]: field === 'description' ? value.trim() || null : value,
+    }));
+  }
+
+  saveDestination(): void {
+    const tripId = this.filterTrip();
+    const data = this.form();
+    if (!tripId || !data.country.trim() || !data.place_name.trim()) return;
+
+    this.saving.set(true);
+    this.error.set(null);
+
+    const payload: DestinationCreate = {
+      country: data.country.trim(),
+      place_name: data.place_name.trim(),
+      description: data.description?.trim() || null,
+    };
+    const request = this.editingId()
+      ? this.destinationsApi.update(tripId, this.editingId()!, payload)
+      : this.destinationsApi.create(tripId, payload);
+
+    request.subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.closeForm();
+        this.loadDestinations(tripId);
+      },
+      error: (e) => {
+        this.saving.set(false);
+        this.failError(e, 'No se pudo guardar el destino.');
+      },
+    });
+  }
+
+  canEdit(item: DestinationRead): boolean {
+    return (
+      this.canManage() || (item.proposed_by_user_id === this.auth.user()?.id && !item.is_selected)
+    );
+  }
+
+  toggleSelection(item: DestinationRead): void {
+    const tripId = this.filterTrip();
+    if (!tripId || !this.canManage()) return;
+    this.destinationsApi.select(tripId, item.id, !item.is_selected).subscribe({
+      next: () => this.loadDestinations(tripId),
+      error: (e) => this.failError(e, 'No se pudo cambiar la selección.'),
+    });
+  }
+
+  deleteDestination(item: DestinationRead): void {
+    const tripId = this.filterTrip();
+    if (!tripId || !this.canEdit(item) || !confirm(`¿Eliminar ${item.place_name}?`)) return;
+    this.destinationsApi.delete(tripId, item.id).subscribe({
+      next: () => this.loadDestinations(tripId),
+      error: (e) => this.failError(e, 'No se pudo eliminar el destino.'),
+    });
+  }
+
+  uploadPhoto(item: DestinationRead, event: Event): void {
+    const tripId = this.filterTrip();
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!tripId || !file || this.uploadingDestinationId() !== null) return;
+    if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
+      this.fail('Selecciona una imagen válida de máximo 5 MB.');
+      return;
+    }
+    this.uploadingDestinationId.set(item.id);
+    this.error.set(null);
+    this.destinationsApi.uploadPhoto(tripId, item.id, file).subscribe({
+      next: () => { this.uploadingDestinationId.set(null); this.loadPhotos(tripId, item.id); },
+      error: (e) => { this.uploadingDestinationId.set(null); this.failError(e, 'No se pudo subir la fotografía.'); },
+    });
+  }
+
+  deletePhoto(item: DestinationRead, photo: DestinationPhotoRead): void {
+    const tripId = this.filterTrip();
+    const own = photo.uploaded_by_user_id === this.auth.user()?.id;
+    if (!tripId || (!own && !this.canManage()) || !confirm('¿Eliminar esta fotografía?')) return;
+    this.destinationsApi.deletePhoto(tripId, item.id, photo.id).subscribe({
+      next: () => this.loadPhotos(tripId, item.id),
+      error: (e) => this.failError(e, 'No se pudo eliminar la fotografía.'),
+    });
+  }
+
+  getPhotos(id: number): DestinationPhotoRead[] {
+    return this.photosCache().get(id) ?? [];
   }
 
   groupName(groupId: number): string {
-    return this.groups().find(
-      group => group.id === groupId
-    )?.name || 'Grupo';
+    return this.groups().find((g) => g.id === groupId)?.name || 'Grupo';
   }
 
-  getPhotos(
-    destinationId: number
-  ): DestinationPhotoRead[] {
-    return this.photosCache().get(
-      destinationId
-    ) ?? [];
+  roleLabel(role: string | null | undefined): string {
+    return role === 'OWNER'
+      ? 'Responsable del viaje'
+      : role === 'ORGANIZER'
+        ? 'Organizador'
+        : 'Participante';
   }
 
-  destinationDescription(
-    description: string | null
-  ): string {
-    return description?.trim() ||
-      'Sin descripción.';
+  photoSrc(item: DestinationRead, photo: DestinationPhotoRead): string {
+    return photo.image_url || `/trips/${item.trip_id}/destinations/${item.id}/photos/${photo.id}/file`;
+  }
+
+  private fail(message: string): void {
+    this.error.set(message);
+  }
+
+  private failError(error: unknown, fallback: string): void {
+    this.error.set(error instanceof ApiError ? error.message : fallback);
   }
 }

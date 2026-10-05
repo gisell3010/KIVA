@@ -29,6 +29,6 @@ class User(Base):
     status: Mapped[str] = mapped_column(String(20), server_default="ACTIVE")
     profile_image: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
     )

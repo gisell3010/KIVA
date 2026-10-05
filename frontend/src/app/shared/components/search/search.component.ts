@@ -45,7 +45,7 @@ export class SearchComponent {
       .toLowerCase()
       .trim();
 
-    if (q.length < 2) {
+    if (q.length < 3) {
       return [];
     }
 
@@ -130,7 +130,7 @@ export class SearchComponent {
   }
 
   onFocus(): void {
-    if (this.query().trim().length >= 2) {
+    if (this.query().trim().length >= 3) {
       this.isOpen.set(true);
     }
   }
@@ -158,7 +158,7 @@ export class SearchComponent {
   }
 
   private search(query: string): void {
-    if (query.length < 2) {
+    if (query.length < 3) {
       this.userResults.set([]);
       this.groupResults.set([]);
       this.tripResults.set([]);

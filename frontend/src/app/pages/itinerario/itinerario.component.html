@@ -1,219 +1,198 @@
 <div class="page-head">
   <div>
     <h1 class="page-title">Itinerario</h1>
+    <p class="page-subtitle">Organiza las actividades del viaje por fecha y hora.</p>
+  </div>
+  @if (selectedTripId()) {
+    <button class="btn btn-primary" type="button" (click)="openCreate()">Proponer actividad</button>
+  }
+</div>
 
-    <p class="page-subtitle">
-      Plan día a día de cada viaje.
+<div class="card filter-card">
+  <label for="itineraryTrip">Viaje</label>
+  <select
+    id="itineraryTrip"
+    class="form-input"
+    [value]="selectedTripId() ?? ''"
+    (change)="onTripSelect($event)"
+  >
+    @for (trip of trips(); track trip.id) {
+      <option [value]="trip.id">{{ trip.name }} · {{ groupName(trip.group_id) }}</option>
+    }
+  </select>
+  @if (selectedTrip()) {
+    <p class="permissions-note">
+      Todos los participantes pueden proponer actividades.
+      Solo el propietario y los organizadores del viaje pueden aprobarlas, editarlas o cancelarlas.
     </p>
-  </div>
-
-  <div class="group-select">
-    <svg
-      class="ui-icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.75"
-      aria-hidden="true"
-    >
-      <path
-        d="m3 20 7-14 4 8 3-5 4 11H3Z"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
-
-    <select
-      aria-label="Viaje"
-      [value]="selectedTripId() ?? ''"
-      [disabled]="loading()"
-      (change)="onTripSelect($event)"
-    >
-      <option value="">
-        Seleccionar un viaje
-      </option>
-
-      @for (trip of trips(); track trip.id) {
-        <option [value]="trip.id">
-          {{ trip.name }} ({{ groupName(trip.group_id) }})
-        </option>
-      }
-    </select>
-  </div>
+  }
 </div>
 
 @if (error()) {
-  <div
-    class="error-banner"
-    role="alert"
-  >
-    <svg
-      class="ui-icon"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="10"
-      />
-
-      <path d="M12 8v4M12 16h.01" />
-    </svg>
-
-    {{ error() }}
+  <div class="error-banner" role="alert">{{ error() }}</div>
+}
+@if (loading()) {
+  <div class="loading-state">
+    <p>Cargando itinerario...</p>
   </div>
 }
 
-@if (loading()) {
-  <div class="loading-state">
-    <svg
-      class="ui-icon animate-spin"
-      width="32"
-      height="32"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-    >
-      <path d="M21 12a9 9 0 11-6.219-8.56" />
-    </svg>
-
-    <p>Cargando itinerario...</p>
-  </div>
-} @else if (itineraryDays().length > 0) {
-  <div class="timeline">
-    @for (day of itineraryDays(); track day.date) {
-      <div class="dia-block">
-        <div class="dia-header">
-          <div class="dia-numero">
-            Día {{ day.dayNumber }}
-          </div>
-
-          <div class="dia-fecha">
-            {{ formatDate(day.date) }}
-          </div>
-        </div>
-
-        @for (activity of day.activities; track activity.id) {
-          <div class="actividad-item">
-            <div class="actividad-hora">
-              {{ activity.start_time || '—' }}
-            </div>
-
-            <div class="actividad-dot">
-              <svg
-                class="ui-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="9"
-                />
-
-                <path d="M12 7v5l3 2" />
-              </svg>
-            </div>
-
-            <div class="card actividad-card">
-              <div class="actividad-top">
-                <h4>
-                  {{ activity.title }}
-                </h4>
-
-                @if (activity.status) {
-                  <span class="badge badge-gray">
-                    {{ activity.status }}
-                  </span>
-                }
-              </div>
-
-              <p>
-                {{ activityDescription(activity.description) }}
-              </p>
-
-              <div class="actividad-meta">
-                <div class="actividad-ubicacion">
-                  <svg
-                    class="ui-icon"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.75"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
-                    <circle cx="12" cy="10" r="2" />
-                  </svg>
-
-                  {{ activityLocation(activity.location) }}
-                </div>
-
-                @if (activity.estimated_cost) {
-                  <div class="actividad-costo">
-                    {{ formatMoney(activity.estimated_cost) }}
-                  </div>
-                }
-              </div>
-            </div>
-          </div>
-        }
+@for (day of itineraryDays(); track day.date) {
+  <section class="card itinerary-day">
+    <div class="day-head">
+      <div>
+        <span class="badge badge-blue">Día {{ day.dayNumber }}</span>
+        <h3>{{ formatDate(day.date) }}</h3>
       </div>
+    </div>
+
+    @for (activity of day.activities; track activity.id) {
+      <article class="activity-row">
+        <div class="activity-time">{{ activity.start_time || 'Sin hora' }}</div>
+        <div class="activity-main">
+          <div class="activity-title-row">
+            <h4>{{ activity.title }}</h4>
+            <span
+              class="badge"
+              [class.badge-green]="activity.status === 'APPROVED'"
+              [class.badge-orange]="activity.status === 'PROPOSED'"
+              [class.badge-gray]="activity.status === 'CANCELLED'"
+            >
+              {{ statusLabel(activity.status) }}
+            </span>
+          </div>
+          <p>{{ activity.location || 'Ubicación por definir' }}</p>
+          @if (activity.description) {
+            <p>{{ activity.description }}</p>
+          }
+          @if (activity.estimated_cost) {
+            <strong>{{ formatMoney(activity.estimated_cost) }}</strong>
+          }
+
+          @if (canManage()) {
+            <div class="card-actions">
+              <button class="btn btn-ghost btn-sm" type="button" (click)="openEdit(activity)">
+                Editar
+              </button>
+              @if (activity.status !== 'APPROVED') {
+                <button
+                  class="btn btn-outline btn-sm"
+                  type="button"
+                  (click)="setStatus(activity, 'APPROVED')"
+                >
+                  Aprobar
+                </button>
+              }
+              @if (activity.status !== 'CANCELLED') {
+                <button
+                  class="btn btn-ghost btn-sm"
+                  type="button"
+                  (click)="setStatus(activity, 'CANCELLED')"
+                >
+                  Cancelar
+                </button>
+              }
+              <button
+                class="btn btn-ghost btn-sm"
+                type="button"
+                (click)="deleteActivity(activity)"
+              >
+                Eliminar
+              </button>
+            </div>
+          }
+        </div>
+      </article>
     }
-  </div>
-} @else {
+  </section>
+}
+
+@if (!loading() && selectedTripId() && itineraryDays().length === 0) {
   <div class="card empty-state">
-    <svg
-      class="ui-icon"
-      width="48"
-      height="48"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      aria-hidden="true"
-      style="margin: 0 auto 16px; opacity: 0.4;"
-    >
-      <path d="M8 2v4M16 2v4M3 10h18" />
+    <h3>Itinerario vacío</h3>
+    <p>Propón la primera actividad del viaje.</p>
+  </div>
+}
 
-      <rect
-        x="3"
-        y="4"
-        width="18"
-        height="18"
-        rx="2"
-      />
-
-      <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
-    </svg>
-
-    <h3>
-      No hay itinerario para este viaje
-    </h3>
-
-    <p>
-      @if (selectedTripId() === null) {
-        Selecciona un viaje para consultar su itinerario.
-      } @else {
-        Este viaje todavía no tiene actividades programadas.
-      }
-    </p>
+@if (showForm()) {
+  <div class="modal-overlay" (click)="closeForm()">
+    <div class="modal-box" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <h3>{{ editingId() ? 'Editar actividad' : 'Proponer actividad' }}</h3>
+      <form class="context-form" (ngSubmit)="saveActivity()">
+        <label>
+          Título
+          <input
+            class="form-input"
+            name="title"
+            required
+            maxlength="150"
+            [ngModel]="form().title"
+            (ngModelChange)="setField('title', $event)"
+          />
+        </label>
+        <div class="context-form-grid">
+          <label>
+            Fecha
+            <input
+              class="form-input"
+              type="date"
+              name="date"
+              required
+              [ngModel]="form().activity_date"
+              (ngModelChange)="setField('activity_date', $event)"
+            />
+          </label>
+          <label>
+            Hora
+            <input
+              class="form-input"
+              type="time"
+              name="time"
+              [ngModel]="form().start_time ?? ''"
+              (ngModelChange)="setField('start_time', $event)"
+            />
+          </label>
+        </div>
+        <label>
+          Ubicación
+          <input
+            class="form-input"
+            name="location"
+            maxlength="150"
+            [ngModel]="form().location ?? ''"
+            (ngModelChange)="setField('location', $event)"
+          />
+        </label>
+        <label>
+          Costo estimado
+          <input
+            class="form-input"
+            type="number"
+            min="0"
+            step="0.01"
+            name="cost"
+            [ngModel]="form().estimated_cost ?? ''"
+            (ngModelChange)="setField('estimated_cost', $event)"
+          />
+        </label>
+        <label>
+          Descripción
+          <textarea
+            class="form-input"
+            rows="3"
+            maxlength="300"
+            name="description"
+            [ngModel]="form().description ?? ''"
+            (ngModelChange)="setField('description', $event)"
+          ></textarea>
+        </label>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" type="button" (click)="closeForm()">Cancelar</button>
+          <button class="btn btn-primary" type="submit" [disabled]="saving()">
+            {{ saving() ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 }

@@ -52,3 +52,13 @@ def test_audit_access_and_filters(
 
     assert result.total == 1
     assert result.items[0].user_id == scenario.owner.id
+
+
+def test_audit_returns_name_role_and_filters_by_name(db, scenario, pagination):
+    service.record_action(db, user_id=scenario.owner.id, action='NAME_TEST')
+    db.commit()
+    result = service.list_audit_logs(db, actor_id=scenario.superadmin.id, pagination=pagination,
+                                     action='NAME_TEST', q=scenario.owner.username)
+    assert result.total == 1
+    assert result.items[0].actor_name == scenario.owner.full_name
+    assert result.items[0].actor_role == 'USER'

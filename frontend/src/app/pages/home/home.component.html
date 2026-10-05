@@ -1,0 +1,363 @@
+<div class="home-page">
+  <header class="home-header">
+    <a
+      class="home-brand"
+      routerLink="/"
+      aria-label="KIVA inicio"
+    >
+      <img
+        src="/assets/logo/kiva-logo.png"
+        alt="KIVA"
+        class="home-logo"
+      />
+    </a>
+
+    <nav
+      class="home-nav"
+      aria-label="Navegación principal"
+    >
+      <a href="#funcionalidades">
+        Funcionalidades
+      </a>
+
+      <a href="#como-funciona">
+        Cómo funciona
+      </a>
+
+      <a
+        routerLink="/login"
+        class="nav-login"
+      >
+        Iniciar sesión
+      </a>
+
+      <a
+        routerLink="/register"
+        class="btn btn-primary nav-register"
+      >
+        Crear cuenta
+      </a>
+    </nav>
+  </header>
+
+  <main>
+    <section
+      class="hero"
+      aria-labelledby="hero-title"
+    >
+      <div class="hero-copy">
+        <span class="eyebrow">
+          Organización de viajes grupales
+        </span>
+
+        <h1 id="hero-title">
+          Planea el viaje con tu grupo,
+          sin perder el control de los detalles.
+        </h1>
+
+        <p>
+          KIVA reúne participantes, destinos,
+          itinerarios, gastos, votaciones,
+          reservas y calendario en una sola
+          plataforma para que organizar un viaje
+          en grupo sea más claro y colaborativo.
+        </p>
+
+        <div class="hero-actions">
+          <a
+            routerLink="/register"
+            class="btn btn-primary hero-primary"
+          >
+            Empezar ahora
+          </a>
+
+          <a
+            routerLink="/login"
+            class="btn btn-outline"
+          >
+            Ya tengo una cuenta
+          </a>
+        </div>
+
+        <div
+          class="hero-trust"
+          aria-label="Características principales"
+        >
+          <span>
+            Organización colaborativa
+          </span>
+
+          <span>
+            Información centralizada
+          </span>
+
+          <span>
+            Diseño responsive
+          </span>
+        </div>
+      </div>
+
+      <div
+        class="hero-visual"
+        aria-label="Vista previa conceptual de KIVA"
+      >
+        <div
+          class="visual-glow visual-glow-one"
+        ></div>
+
+        <div
+          class="visual-glow visual-glow-two"
+        ></div>
+
+        <div class="preview-window">
+          <div class="preview-topbar">
+            <div class="preview-brand-mark">
+              <img
+                src="/assets/logo/kiva-logo.png"
+                alt=""
+              />
+            </div>
+
+            <div class="preview-search"></div>
+            <div class="preview-avatar"></div>
+          </div>
+
+          <div class="preview-body">
+            <aside
+              class="preview-sidebar"
+              aria-hidden="true"
+            >
+              <span
+                class="preview-nav active"
+              ></span>
+
+              <span class="preview-nav"></span>
+              <span class="preview-nav"></span>
+
+              <span
+                class="preview-nav short"
+              ></span>
+            </aside>
+
+            <div class="preview-content">
+              <div class="preview-heading"></div>
+              <div class="preview-subheading"></div>
+
+              <div class="preview-kpis">
+                <div class="preview-kpi"></div>
+                <div class="preview-kpi"></div>
+                <div class="preview-kpi"></div>
+              </div>
+
+              <div class="preview-panels">
+                <div
+                  class="preview-panel route-panel"
+                >
+                  <svg
+                    viewBox="0 0 300 170"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M30 126C65 75 92 142 130 92S205 42 270 58"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="4"
+                      stroke-linecap="round"
+                      stroke-dasharray="8 10"
+                    />
+
+                    <circle
+                      cx="30"
+                      cy="126"
+                      r="7"
+                    />
+
+                    <circle
+                      cx="130"
+                      cy="92"
+                      r="7"
+                    />
+
+                    <circle
+                      cx="270"
+                      cy="58"
+                      r="7"
+                    />
+                  </svg>
+                </div>
+
+                <div
+                  class="preview-panel list-panel"
+                >
+                  <span></span>
+                  <span></span>
+                  <span></span>
+
+                  <span
+                    class="small"
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section
+      id="funcionalidades"
+      class="home-section features-section"
+      aria-labelledby="features-title"
+    >
+      <div class="section-heading">
+        <span class="eyebrow">
+          Todo en un mismo lugar
+        </span>
+
+        <h2 id="features-title">
+          Herramientas para organizar el viaje
+          de principio a fin
+        </h2>
+
+        <p>
+          Cada módulo de KIVA concentra una parte
+          de la planificación para que el grupo
+          pueda consultar y coordinar la misma
+          información.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        @for (
+          feature of features;
+          track feature.title
+        ) {
+          <article class="feature-card">
+            <div
+              class="feature-icon"
+              aria-hidden="true"
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  [attr.d]="feature.icon"
+                />
+              </svg>
+            </div>
+
+            <h3>
+              {{ feature.title }}
+            </h3>
+
+            <p>
+              {{ feature.description }}
+            </p>
+          </article>
+        }
+      </div>
+    </section>
+
+    <section
+      id="como-funciona"
+      class="home-section how-section"
+      aria-labelledby="how-title"
+    >
+      <div
+        class="section-heading compact-heading"
+      >
+        <span class="eyebrow">
+          Simple desde el inicio
+        </span>
+
+        <h2 id="how-title">
+          De la idea del viaje a un plan compartido
+        </h2>
+      </div>
+
+      <div class="steps-grid">
+        @for (
+          step of steps;
+          track step.number
+        ) {
+          <article class="step-card">
+            <span class="step-number">
+              {{ step.number }}
+            </span>
+
+            <h3>
+              {{ step.title }}
+            </h3>
+
+            <p>
+              {{ step.description }}
+            </p>
+          </article>
+        }
+      </div>
+    </section>
+
+    <section
+      class="home-cta"
+      aria-labelledby="cta-title"
+    >
+      <div>
+        <span class="eyebrow">
+          Tu próximo viaje empieza aquí
+        </span>
+
+        <h2 id="cta-title">
+          Organiza las decisiones del grupo
+          en un solo espacio.
+        </h2>
+
+        <p>
+          Crea tu cuenta y empieza a construir
+          el viaje junto con tus participantes.
+        </p>
+      </div>
+
+      <div class="cta-actions">
+        <a
+          routerLink="/register"
+          class="btn btn-primary"
+        >
+          Crear cuenta
+        </a>
+
+        <a
+          routerLink="/login"
+          class="btn btn-outline"
+        >
+          Iniciar sesión
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="home-footer">
+    <div class="footer-brand">
+      <img
+        src="/assets/logo/kiva-logo.png"
+        alt="KIVA"
+      />
+
+      <span>
+        Kinship, Inspiration,
+        Voyages & Adventures
+      </span>
+    </div>
+
+    <p>
+      Plataforma para la organización
+      colaborativa de viajes grupales.
+    </p>
+  </footer>
+</div>

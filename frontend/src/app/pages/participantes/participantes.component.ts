@@ -1,180 +1,168 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { allPages } from '../../core/http/all-pages';
 import { CommonModule } from '@angular/common';
-import { forkJoin, map } from 'rxjs';
-import { GroupsApiService } from '../../data-access/api/groups-api.service';
-import { GroupMemberRead, GroupRead, GroupRole } from '../../shared/models/domain.models';
-import { PrivateImageComponent } from '../../shared/components/private-image/private-image.component';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { AuthService } from '../../core/auth/auth.service';
 import { ApiError } from '../../core/http/error.interceptor';
-
-interface ParticipantGroupMembership {
-  groupId: number;
-  groupName: string;
-  role: GroupRole;
-}
-
-interface ParticipantView {
-  user_id: number;
-  full_name: string;
-  username: string;
-  profile_image: string | null;
-  groupMemberships: ParticipantGroupMembership[];
-}
+import { GroupsApiService } from '../../data-access/api/groups-api.service';
+import { TripsApiService } from '../../data-access/api/trips-api.service';
+import { UserAvatarComponent } from '../../shared/components/user-avatar/user-avatar.component';
+import { GroupMemberRead, TripMemberRead, TripRead } from '../../shared/models/domain.models';
+import { isTripManager, isTripOwner } from '../../shared/utils/permissions.utils';
 
 @Component({
   selector: 'app-participantes',
   standalone: true,
-  imports: [CommonModule, PrivateImageComponent],
+  imports: [CommonModule, FormsModule, UserAvatarComponent],
   templateUrl: './participantes.component.html',
-  styleUrl: './participantes.component.css'
+  styleUrl: './participantes.component.css',
 })
 export class ParticipantesComponent implements OnInit {
+  private readonly tripsApi = inject(TripsApiService);
   private readonly groupsApi = inject(GroupsApiService);
+  private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
 
-  readonly participants = signal<ParticipantView[]>([]);
+  readonly trips = signal<TripRead[]>([]);
+  readonly selectedTripId = signal<number | null>(null);
+  readonly members = signal<TripMemberRead[]>([]);
+  readonly groupMembers = signal<GroupMemberRead[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly showAdd = signal(false);
+  readonly currentUser = this.auth.user;
+
+  readonly selectedTrip = computed(
+    () => this.trips().find((t) => t.id === this.selectedTripId()) ?? null,
+  );
+  readonly canManage = computed(() => isTripManager(this.selectedTrip()));
+  readonly isOwner = computed(() => isTripOwner(this.selectedTrip()));
+  readonly candidates = computed(() =>
+    this.groupMembers().filter((g) => !this.members().some((m) => m.user_id === g.user_id)),
+  );
 
   ngOnInit(): void {
-    this.loadParticipants();
-  }
-
-  loadParticipants(): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.groupsApi.list({
-      page: 1,
-      page_size: 100
-    }).subscribe({
-      next: page => {
-        const groups = page.items;
-
-        if (groups.length === 0) {
-          this.participants.set([]);
-          this.loading.set(false);
-          return;
-        }
-
-        const requests = groups.map(group =>
-          this.groupsApi.members(
-            group.id,
-            {
-              page: 1,
-              page_size: 100
-            }
-          ).pipe(
-            map(memberPage => ({
-              group,
-              members: memberPage.items
-            }))
-          )
-        );
-
-        forkJoin(requests).subscribe({
-          next: results => {
-            this.participants.set(
-              this.buildParticipants(results)
-            );
-
-            this.loading.set(false);
-          },
-
-          error: (err: unknown) => {
-            this.handleError(err);
-          }
-        });
+    allPages(page => this.tripsApi.list({ page, page_size: 100 })).subscribe({
+      next: (p) => {
+        this.trips.set(p.items);
+        const q = Number(this.route.snapshot.queryParamMap.get('trip'));
+        const id = p.items.some((t) => t.id === q) ? q : (p.items[0]?.id ?? null);
+        this.selectedTripId.set(id);
+        if (id) this.load(id);
       },
-
-      error: (err: unknown) => {
-        this.handleError(err);
-      }
+      error: () => this.error.set('No se pudieron cargar los viajes.'),
     });
   }
 
-  roleBadge(role: GroupRole): string {
-    switch (role) {
-      case 'OWNER':
-        return 'badge-purple';
+  onTripSelect(e: Event): void {
+    const id = Number((e.target as HTMLSelectElement).value);
+    if (!id) {
+      this.selectedTripId.set(null);
+      this.members.set([]);
+      return;
+    }
+    this.selectedTripId.set(id);
+    this.load(id);
+  }
 
-      case 'MEMBER':
-        return 'badge-green';
+  load(id: number): void {
+    this.loading.set(true);
+    this.error.set(null);
+
+    allPages(page => this.tripsApi.members(id, { page, page_size: 100 })).subscribe({
+      next: (p) => {
+        this.members.set(p.items);
+        this.loading.set(false);
+      },
+      error: (e) => {
+        this.loading.set(false);
+        this.failError(e, 'No se pudieron cargar los participantes.');
+      },
+    });
+
+    const trip = this.trips().find((t) => t.id === id);
+    if (trip) {
+      allPages(page => this.groupsApi.members(trip.group_id, { page, page_size: 100 })).subscribe({
+        next: (p) => this.groupMembers.set(p.items),
+        error: () => this.groupMembers.set([]),
+      });
     }
   }
 
-  roleLabel(role: GroupRole): string {
-    switch (role) {
-      case 'OWNER':
-        return 'Propietario';
-
-      case 'MEMBER':
-        return 'Miembro';
-    }
+  add(member: GroupMemberRead, role: 'MEMBER' | 'ORGANIZER' = 'MEMBER'): void {
+    const id = this.selectedTripId();
+    if (!id || !this.canManage() || (role === 'ORGANIZER' && !this.isOwner())) return;
+    this.tripsApi.addMember(id, { user_id: member.user_id, role }).subscribe({
+      next: () => this.load(id),
+      error: (e) => this.failError(e, 'No se pudo agregar el participante.'),
+    });
   }
 
-  getPrimaryRole(participant: ParticipantView): GroupRole {
-    return participant.groupMemberships.some(
-      membership => membership.role === 'OWNER'
-    )
-      ? 'OWNER'
-      : 'MEMBER';
+  changeRole(member: TripMemberRead, role: 'MEMBER' | 'ORGANIZER'): void {
+    const id = this.selectedTripId();
+    if (!id || !this.isOwner() || member.role === 'OWNER') return;
+    this.tripsApi.updateMember(id, member.user_id, role).subscribe({
+      next: () => this.load(id),
+      error: (e) => this.failError(e, 'No se pudo cambiar el rol.'),
+    });
   }
 
-  private buildParticipants(
-    results: {
-      group: GroupRead;
-      members: GroupMemberRead[];
-    }[]
-  ): ParticipantView[] {
-    const participants = new Map<number, ParticipantView>();
-
-    for (const result of results) {
-      for (const member of result.members) {
-        const existing = participants.get(member.user_id);
-
-        const membership: ParticipantGroupMembership = {
-          groupId: result.group.id,
-          groupName: result.group.name,
-          role: member.role
-        };
-
-        if (existing) {
-          existing.groupMemberships.push(membership);
-          continue;
-        }
-
-        participants.set(
-          member.user_id,
-          {
-            user_id: member.user_id,
-            full_name: member.full_name,
-            username: member.username,
-            profile_image: member.profile_image,
-            groupMemberships: [membership]
-          }
-        );
-      }
+  remove(member: TripMemberRead): void {
+    const id = this.selectedTripId();
+    const me = this.currentUser()?.id;
+    if (
+      !id ||
+      member.role === 'OWNER' ||
+      !confirm(member.user_id === me ? '¿Salir de este viaje?' : `¿Retirar a ${member.full_name}?`)
+    ) {
+      return;
     }
-
-    return [...participants.values()].sort(
-      (a, b) =>
-        a.full_name.localeCompare(
-          b.full_name,
-          'es'
-        )
-    );
+    this.tripsApi.removeMember(id, member.user_id).subscribe({
+      next: () => this.load(id),
+      error: (e) =>
+        this.failError(e, 'El participante tiene registros asociados o no tienes permiso.'),
+    });
   }
 
-  private handleError(err: unknown): void {
-    this.participants.set([]);
-
-    if (err instanceof ApiError) {
-      this.error.set(err.message);
-    } else {
-      this.error.set(
-        'Error al cargar los participantes.'
-      );
+  transfer(member: TripMemberRead): void {
+    const id = this.selectedTripId();
+    if (
+      !id ||
+      !this.isOwner() ||
+      member.role === 'OWNER' ||
+      !confirm(`¿Transferir la responsabilidad del viaje a ${member.full_name}? Tú continuarás como organizador.`)
+    ) {
+      return;
     }
+    this.tripsApi.transferOwnership(id, member.user_id).subscribe({
+      next: () => this.refreshTrips(id),
+      error: (e) => this.failError(e, 'No se pudo transferir la responsabilidad del viaje.'),
+    });
+  }
 
-    this.loading.set(false);
+  refreshTrips(id: number): void {
+    allPages(page => this.tripsApi.list({ page, page_size: 100 })).subscribe({
+      next: (p) => {
+        this.trips.set(p.items);
+        this.load(id);
+      },
+    });
+  }
+
+  canRemove(member: TripMemberRead): boolean {
+    const me = this.currentUser()?.id;
+    if (member.role === 'OWNER') return false;
+    if (member.user_id === me) return true;
+    if (this.isOwner()) return true;
+    return this.selectedTrip()?.my_role === 'ORGANIZER' && member.role === 'MEMBER';
+  }
+
+  roleLabel(r: string): string {
+    return r === 'OWNER' ? 'Responsable del viaje' : r === 'ORGANIZER' ? 'Organizador' : 'Participante';
+  }
+
+  private failError(e: unknown, f: string): void {
+    this.error.set(e instanceof ApiError ? e.message : f);
   }
 }
