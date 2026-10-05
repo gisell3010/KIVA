@@ -346,3 +346,24 @@ def image_stream():
         return stream
 
     return create
+
+@pytest.fixture
+def client(db):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.db.session import get_db
+    app.dependency_overrides[get_db] = lambda: db
+    try:
+        with TestClient(app, headers={'X-KIVA-CSRF': '1'}) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def login_headers(client, password):
+    def login(user):
+        response = client.post('/api/auth/login', json={'email': user.email, 'password': password})
+        assert response.status_code == 200, response.text
+        return {'Authorization': f'Bearer {response.json()["access_token"]}'}
+    return login

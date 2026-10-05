@@ -80,12 +80,29 @@ export class AdminApiService {
     filters: M.Pagination & {
       q?: string;
       status?: M.TripStatus;
+      group_id?: number;
     } = {},
   ) {
     return this.http.get<M.Page<M.TripRead>>(
       `${this.url}/admin/trips`,
       { params: apiParams(filters) },
     );
+  }
+
+  supportGroups(userId: number, page = 1) {
+    return this.http.get<M.Page<M.GroupRead>>(`${this.url}/support/users/${userId}/groups`, { params: { page, page_size: 10 } });
+  }
+  supportTrips(userId: number, page = 1) {
+    return this.http.get<M.Page<M.TripRead>>(`${this.url}/support/users/${userId}/trips`, { params: { page, page_size: 10 } });
+  }
+  revokeUserSessions(userId: number) {
+    return this.http.post<void>(`${this.url}/support/users/${userId}/revoke-sessions`, {});
+  }
+  supportTrip(tripId: number) {
+    return this.http.get<M.TripRead>(`${this.url}/support/trips/${tripId}`);
+  }
+  diagnostic(tripId: number, section: string, page = 1) {
+    return this.http.get<M.Page<{ id: number; title: string; detail: string }>>(`${this.url}/support/trips/${tripId}/diagnostic/${section}`, { params: { page, page_size: 20 } });
   }
 
   config() {

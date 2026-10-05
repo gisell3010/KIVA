@@ -225,7 +225,7 @@ def add_member(db, *, actor_id, group_id, data):
 
 @atomic
 def remove_member(db, *, actor_id, group_id, user_id):
-    _, actor = group_access(
+    group, actor = group_access(
         db,
         actor_id,
         group_id,
@@ -263,6 +263,14 @@ def remove_member(db, *, actor_id, group_id, user_id):
             "MEMBER_HAS_TRIPS",
         )
 
+    if actor_id != user_id:
+        create_notification(
+            db,
+            user_id=user_id,
+            title="Cambio en un grupo",
+            message=f"Ya no formas parte del grupo {group.name}.",
+        )
+
     audit(db, actor_id, "GROUP_MEMBER_REMOVE", member)
     db.delete(member)
 
@@ -290,6 +298,14 @@ def transfer_ownership(db, *, actor_id, group_id, data):
     if successor.id != owner.id:
         owner.role = "MEMBER"
         successor.role = "OWNER"
+
+        create_notification(
+            db,
+            user_id=data.new_owner_user_id,
+            title="Ahora eres responsable del grupo",
+            message=f"Te transfirieron la responsabilidad de {group.name}.",
+        )
+
         audit(db, actor_id, "GROUP_OWNER_CHANGE", group)
 
     db.flush()

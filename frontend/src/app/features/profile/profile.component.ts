@@ -1,6 +1,7 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { UsersApiService } from '../../data-access/api/users-api.service';
 import { TripsApiService } from '../../data-access/api/trips-api.service';
@@ -8,7 +9,7 @@ import { GroupsApiService } from '../../data-access/api/groups-api.service';
 import { AuthSessionRead } from '../../shared/models/domain.models';
 import { formatRelativeTime } from '../../shared/utils/date.utils';
 import { ApiError } from '../../core/http/error.interceptor';
-import { PrivateImageComponent } from '../../shared/components/private-image/private-image.component';
+import { UserAvatarComponent } from '../../shared/components/user-avatar/user-avatar.component';
 
 interface ProfileFormData {
   full_name: string;
@@ -21,7 +22,8 @@ interface ProfileFormData {
   imports: [
     CommonModule,
     FormsModule,
-    PrivateImageComponent
+    RouterLink,
+    UserAvatarComponent
   ],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css'
@@ -41,6 +43,7 @@ export class ProfileComponent implements OnInit {
   readonly saving = signal(false);
   readonly saveSuccess = signal(false);
   readonly uploadingImage = signal(false);
+  readonly imageRevision = signal(0);
   readonly imageError = signal<string | null>(null);
 
   readonly formData = signal<ProfileFormData>({
@@ -220,6 +223,7 @@ export class ProfileComponent implements OnInit {
     this.usersApi.uploadProfileImage(file).subscribe({
       next: user => {
         this.authService.updateUser(user);
+        this.imageRevision.update(value => value + 1);
         this.uploadingImage.set(false);
       },
       error: error => {
@@ -249,6 +253,7 @@ export class ProfileComponent implements OnInit {
           ...user,
           profile_image: null
         });
+        this.imageRevision.update(value => value + 1);
       },
       error: error => {
         this.imageError.set(

@@ -1,3 +1,4 @@
+import { ApiError } from '../../../core/http/error.interceptor';
 import { Component, OnInit, computed, inject, signal} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -663,16 +664,13 @@ export class AdminUsersComponent
           );
         },
 
-        error: () => {
-          this.error.set(
-            'No se pudo actualizar el usuario.'
-          );
+        error: (e: unknown) => {
+          this.error.set(e instanceof ApiError ? e.message : 'No se pudo actualizar el usuario.');
 
           this.savingUserId.set(
             null
           );
 
-          this.loadUsers();
         }
 
       });

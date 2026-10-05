@@ -91,6 +91,7 @@ def list_trips(
     pagination,
     q=None,
     status=None,
+    group_id=None,
 ):
     _authorize(db, actor_id, ADMINS)
 
@@ -107,6 +108,11 @@ def list_trips(
     if status is not None:
         statement = statement.where(
             Trip.status == status
+        )
+
+    if group_id is not None:
+        statement = statement.where(
+            Trip.group_id == group_id
         )
 
     return mapped_page(

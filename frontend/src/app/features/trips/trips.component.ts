@@ -1,284 +1,208 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { TripsApiService } from '../../data-access/api/trips-api.service';
-import { GroupsApiService } from '../../data-access/api/groups-api.service';
-import { Page, TripRead, TripStatus, TripRole, GroupRead } from '../../shared/models/domain.models';
-import { formatDate } from '../../shared/utils/date.utils';
-import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
 import { ApiError } from '../../core/http/error.interceptor';
+import { GroupsApiService } from '../../data-access/api/groups-api.service';
+import { TripsApiService } from '../../data-access/api/trips-api.service';
+import { PaginationComponent } from '../../shared/components/pagination/pagination.component';
+import { GroupRead, Page, TripRead, TripStatus, TripUpdate } from '../../shared/models/domain.models';
+import { formatDate } from '../../shared/utils/date.utils';
 
 @Component({
   selector: 'app-trips',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, PaginationComponent],
   templateUrl: './trips.component.html',
-  styleUrl: './trips.component.css'
+  styleUrl: './trips.component.css',
 })
 export class TripsComponent implements OnInit {
   private readonly tripsApi = inject(TripsApiService);
   private readonly groupsApi = inject(GroupsApiService);
 
-  readonly trips = signal<TripRead[]>([]);
   readonly groups = signal<GroupRead[]>([]);
-  readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
-
+  readonly trips = signal<TripRead[]>([]);
   readonly selectedGroupId = signal<number | null>(null);
   readonly selectedStatus = signal<TripStatus | 'all'>('all');
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly page = signal(1);
+  readonly pageSize = signal(12);
+  readonly total = signal(0);
+  readonly showEdit = signal(false);
+  readonly editing = signal<TripRead | null>(null);
+  readonly saving = signal(false);
+  readonly form = signal<TripUpdate>({});
 
-  readonly pagination = signal<Page<TripRead>>({
-    items: [],
-    total: 0,
-    page: 1,
-    page_size: 10
-  });
+  readonly paginationPage = computed<Page<TripRead>>(() => ({
+    items: this.trips(),
+    total: this.total(),
+    page: this.page(),
+    page_size: this.pageSize(),
+  }));
 
-  readonly statusOptions: {
-    value: TripStatus | 'all';
-    label: string;
-  }[] = [
-    {
-      value: 'all',
-      label: 'Todos los estados'
-    },
-    {
-      value: 'PLANNING',
-      label: 'Planificando'
-    },
-    {
-      value: 'CONFIRMED',
-      label: 'Confirmado'
-    },
-    {
-      value: 'COMPLETED',
-      label: 'Finalizado'
-    },
-    {
-      value: 'CANCELLED',
-      label: 'Cancelado'
-    }
-  ];
+  readonly formatDate = formatDate;
 
   ngOnInit(): void {
-    this.loadGroups();
-    this.loadTrips();
-  }
-
-  loadGroups(): void {
-    this.groupsApi.list({
-      page: 1,
-      page_size: 100
-    }).subscribe({
-      next: page => {
-        this.groups.set(page.items);
-      },
-
-      error: () => {
-        this.groups.set([]);
-      }
+    this.groupsApi.list({ page: 1, page_size: 100 }).subscribe({
+      next: (page) => this.groups.set(page.items),
+      error: () => this.groups.set([]),
     });
+
+    this.loadTrips();
   }
 
   loadTrips(): void {
     this.loading.set(true);
     this.error.set(null);
 
-    const groupId = this.selectedGroupId();
-    const status = this.selectedStatus();
-
-    this.tripsApi.list({
-      page: this.pagination().page,
-      page_size: this.pagination().page_size,
-      group_id: groupId ?? undefined
-    }).subscribe({
-      next: page => {
-        const filteredTrips =
-          status === 'all'
-            ? page.items
-            : page.items.filter(
-                trip => trip.status === status
-              );
-
-        this.trips.set(filteredTrips);
-
-        this.pagination.set({
-          items: filteredTrips,
-          total:
-            status === 'all'
-              ? page.total
-              : filteredTrips.length,
-          page: page.page,
-          page_size: page.page_size
-        });
-
-        this.loading.set(false);
-      },
-
-      error: (err: unknown) => {
-        this.trips.set([]);
-
-        this.pagination.update(current => ({
-          ...current,
-          items: [],
-          total: 0
-        }));
-
-        if (err instanceof ApiError) {
-          this.error.set(err.message);
-        } else {
+    this.tripsApi
+      .list({
+        page: this.page(),
+        page_size: this.pageSize(),
+        ...(this.selectedGroupId() ? { group_id: this.selectedGroupId()! } : {}),
+        ...(this.selectedStatus() !== 'all' ? { status: this.selectedStatus() as TripStatus } : {}),
+      })
+      .subscribe({
+        next: (page) => {
+          this.trips.set(page.items);
+          this.total.set(page.total);
+          this.loading.set(false);
+        },
+        error: (error) => {
+          this.trips.set([]);
+          this.total.set(0);
+          this.loading.set(false);
           this.error.set(
-            'Error al cargar los viajes.'
+            error instanceof ApiError
+              ? error.message
+              : 'No se pudieron cargar los viajes.',
           );
-        }
-
-        this.loading.set(false);
-      }
-    });
+        },
+      });
   }
 
-  onGroupFilterChange(
-    groupId: number | null
-  ): void {
-    this.selectedGroupId.set(groupId);
-
-    this.pagination.update(current => ({
-      ...current,
-      page: 1
-    }));
-
+  onGroupFilterChange(event: Event): void {
+    this.selectedGroupId.set(
+      Number((event.target as HTMLSelectElement).value) || null,
+    );
+    this.page.set(1);
     this.loadTrips();
   }
 
-  onStatusFilterChange(
-    status: TripStatus | 'all'
-  ): void {
-    this.selectedStatus.set(status);
-
-    this.pagination.update(current => ({
-      ...current,
-      page: 1
-    }));
-
+  onStatusFilterChange(event: Event): void {
+    this.selectedStatus.set(
+      (event.target as HTMLSelectElement).value as TripStatus | 'all',
+    );
+    this.page.set(1);
     this.loadTrips();
   }
 
   onPageChange(page: number): void {
-    this.pagination.update(current => ({
-      ...current,
-      page
-    }));
-
+    this.page.set(page);
     this.loadTrips();
   }
 
-  getGroupName(groupId: number): string {
-    return this.groups().find(
-      group => group.id === groupId
-    )?.name || 'Grupo desconocido';
+  canEditTrip(trip: TripRead): boolean {
+    return (
+      trip.my_role === 'OWNER' &&
+      (trip.status === 'PLANNING' || trip.status === 'CONFIRMED')
+    );
   }
 
-  getGroupColor(groupId: number): string {
-    const colors = [
-      '#3b82f6',
-      '#8b5cf6',
-      '#10b981',
-      '#f59e0b',
-      '#ef4444'
-    ];
+  openEdit(trip: TripRead): void {
+    if (!this.canEditTrip(trip)) return;
 
-    return colors[
-      Math.abs(groupId) % colors.length
-    ];
+    this.editing.set(trip);
+    this.form.set({
+      name: trip.name,
+      description: trip.description,
+      start_date: trip.start_date,
+      end_date: trip.end_date,
+      status: trip.status,
+    });
+    this.showEdit.set(true);
   }
 
-  tripDateRange(
-    startDate: string | null,
-    endDate: string | null
-  ): string {
-    if (!startDate && !endDate) {
-      return 'Fechas por definir';
-    }
-
-    if (startDate && !endDate) {
-      return `Desde ${formatDate(startDate)}`;
-    }
-
-    if (!startDate && endDate) {
-      return `Hasta ${formatDate(endDate)}`;
-    }
-
-    return `${formatDate(startDate!)} - ${formatDate(endDate!)}`;
+  closeEdit(): void {
+    this.showEdit.set(false);
+    this.editing.set(null);
+    this.form.set({});
   }
 
-  statusBadge(status: TripStatus): string {
-    switch (status) {
-      case 'PLANNING':
-        return 'badge-orange';
+  setField(field: keyof TripUpdate, value: string): void {
+    this.form.update((current) => ({
+      ...current,
+      [field]: ['description', 'start_date', 'end_date'].includes(field)
+        ? value || null
+        : value,
+    }));
+  }
 
-      case 'CONFIRMED':
-        return 'badge-blue';
+  saveTrip(): void {
+    const trip = this.editing();
 
-      case 'COMPLETED':
-        return 'badge-gray';
+    if (!trip || !this.canEditTrip(trip)) return;
 
-      case 'CANCELLED':
-        return 'badge-red';
+    this.saving.set(true);
+    this.error.set(null);
 
-      default:
-        return 'badge-gray';
+    this.tripsApi.update(trip.id, this.form()).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.closeEdit();
+        this.loadTrips();
+      },
+      error: (error) => {
+        this.saving.set(false);
+        this.error.set(
+          error instanceof ApiError
+            ? error.message
+            : 'No se pudo actualizar el viaje.',
+        );
+      },
+    });
+  }
+
+  deleteTrip(trip: TripRead): void {
+    if (
+      trip.my_role !== 'OWNER' ||
+      !confirm(`¿Eliminar el viaje ${trip.name}?`)
+    ) {
+      return;
     }
+
+    this.error.set(null);
+
+    this.tripsApi.delete(trip.id).subscribe({
+      next: () => this.loadTrips(),
+      error: (error) =>
+        this.error.set(
+          error instanceof ApiError
+            ? error.message
+            : 'No se pudo eliminar el viaje.',
+        ),
+    });
+  }
+
+  getGroupName(id: number): string {
+    return this.groups().find((group) => group.id === id)?.name || 'Grupo';
   }
 
   statusLabel(status: TripStatus): string {
-    switch (status) {
-      case 'PLANNING':
-        return 'Planificando';
-
-      case 'CONFIRMED':
-        return 'Confirmado';
-
-      case 'COMPLETED':
-        return 'Finalizado';
-
-      case 'CANCELLED':
-        return 'Cancelado';
-
-      default:
-        return 'Desconocido';
-    }
+    return {
+      PLANNING: 'Planificando',
+      CONFIRMED: 'Confirmado',
+      COMPLETED: 'Completado',
+      CANCELLED: 'Cancelado',
+    }[status];
   }
 
-  roleBadge(role: TripRole): string {
-    switch (role) {
-      case 'OWNER':
-        return 'badge-purple';
-
-      case 'ORGANIZER':
-        return 'badge-blue';
-
-      case 'MEMBER':
-        return 'badge-green';
-
-      default:
-        return 'badge-gray';
-    }
-  }
-
-  roleLabel(role: TripRole): string {
-    switch (role) {
-      case 'OWNER':
-        return 'Propietario';
-
-      case 'ORGANIZER':
-        return 'Organizador';
-
-      case 'MEMBER':
-        return 'Miembro';
-
-      default:
-        return 'Miembro';
-    }
+  roleLabel(role: string | null): string {
+    return role === 'OWNER'
+      ? 'Responsable del viaje'
+      : role === 'ORGANIZER'
+        ? 'Organizador'
+        : 'Participante';
   }
 }

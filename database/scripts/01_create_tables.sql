@@ -23,7 +23,7 @@ CREATE TABLE auth.users (
     role VARCHAR(20) NOT NULL DEFAULT 'USER',
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     profile_image VARCHAR(255),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_users_role
         CHECK (role IN ('SUPER_ADMIN', 'ADMIN', 'SUPPORT', 'USER')),
     CONSTRAINT chk_users_status
@@ -59,7 +59,7 @@ CREATE TABLE app.travel_groups (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name VARCHAR(120) NOT NULL,
     description VARCHAR(300),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ----------------------------------------------------------------
@@ -71,7 +71,7 @@ CREATE TABLE app.group_members (
     group_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'MEMBER',
-    joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_group_members
         UNIQUE (group_id, user_id),
     CONSTRAINT chk_group_members_role
@@ -98,7 +98,7 @@ CREATE TABLE app.trips (
     start_date DATE,
     end_date DATE,
     status VARCHAR(20) NOT NULL DEFAULT 'PLANNING',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_trips_status
         CHECK (
             status IN (
@@ -177,7 +177,7 @@ CREATE TABLE app.destination_photos (
     uploaded_by_user_id INTEGER NOT NULL,
     file_path VARCHAR(255) NOT NULL UNIQUE,
     position INTEGER NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_destination_photos_position
         UNIQUE (destination_id, position),
     CONSTRAINT chk_destination_photos_position
@@ -294,7 +294,7 @@ CREATE TABLE app.polls (
     trip_id INTEGER NOT NULL,
     question VARCHAR(250) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
-    closes_at TIMESTAMP,
+    closes_at TIMESTAMPTZ,
     CONSTRAINT chk_polls_status
         CHECK (status IN ('OPEN', 'CLOSED')),
     CONSTRAINT fk_polls_trip
@@ -330,7 +330,7 @@ CREATE TABLE app.votes (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id INTEGER NOT NULL,
     option_id INTEGER NOT NULL,
-    voted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    voted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_votes_option_user
         UNIQUE (option_id, user_id),
     CONSTRAINT fk_votes_user
@@ -398,7 +398,7 @@ CREATE TABLE app.notifications (
     title VARCHAR(150) NOT NULL,
     message VARCHAR(300) NOT NULL,
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_notifications_user
         FOREIGN KEY (user_id)
         REFERENCES auth.users(id)
@@ -419,7 +419,7 @@ CREATE TABLE audit.audit_logs (
     action VARCHAR(100) NOT NULL,
     entity VARCHAR(80),
     entity_id INTEGER,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_audit_logs_user
         FOREIGN KEY (user_id)
         REFERENCES auth.users(id)

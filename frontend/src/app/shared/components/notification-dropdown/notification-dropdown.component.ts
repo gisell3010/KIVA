@@ -1,9 +1,11 @@
-import { Component, signal, inject, HostListener, ElementRef } from '@angular/core';
+import { Component, DestroyRef, signal, inject, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { UsersApiService } from '../../../data-access/api/users-api.service';
 import { NotificationRead, UnreadCount } from '../../../shared/models/domain.models';
 import { formatRelativeTime } from '../../../shared/utils/date.utils';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { timer } from 'rxjs';
 
 @Component({
   selector: 'app-notification-dropdown',
@@ -353,12 +355,21 @@ import { formatRelativeTime } from '../../../shared/utils/date.utils';
 export class NotificationDropdownComponent {
   private readonly usersApi = inject(UsersApiService);
   private readonly elementRef = inject(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly isOpen = signal(false);
   readonly unreadCount = signal<UnreadCount>({ total: 0 });
   readonly recentNotifications = signal<NotificationRead[]>([]);
 
   readonly formatRelativeTime = formatRelativeTime;
+
+  constructor() {
+    // Mantiene actualizado el contador sin WebSockets ni recargas manuales.
+    // El polling es deliberadamente liviano para el alcance académico de KIVA.
+    timer(0, 60_000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadUnreadCount());
+  }
 
   toggle(): void {
     this.isOpen.update(value => !value);

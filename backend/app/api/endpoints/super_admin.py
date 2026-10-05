@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 from pydantic import AwareDatetime
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.dependencies import (
@@ -9,7 +10,6 @@ from app.api.dependencies import (
     Pagination,
     SuperAdminUser,
 )
-from app.db.session import check_db_connection
 from app.schemas.admin import SystemConfigRead
 from app.schemas.audit_log import AuditLogRead
 from app.schemas.common import Page
@@ -64,6 +64,7 @@ def list_audit_logs(
         int | None,
         Query(gt=0, le=2_147_483_647),
     ] = None,
+    q: Annotated[str | None, Query(min_length=1, max_length=150)] = None,
     created_from: AwareDatetime | None = None,
     created_to: AwareDatetime | None = None,
 ):
@@ -72,6 +73,7 @@ def list_audit_logs(
         actor_id=actor.id,
         pagination=pagination,
         user_id=user_id,
+        q=q,
         action=action,
         entity=entity,
         entity_id=entity_id,
@@ -88,9 +90,10 @@ def list_audit_logs(
 def health(
     response: Response,
     actor: SuperAdminUser,
+    db: DbSession,
 ):
     try:
-        check_db_connection()
+        db.execute(text("SELECT 1"))
 
     except SQLAlchemyError:
         response.status_code = 503

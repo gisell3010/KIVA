@@ -3,6 +3,7 @@ from datetime import timezone
 from sqlalchemy import func, select
 
 from app.models.poll import Poll, PollOption, Vote
+from app.services.notification_service import notify_trip_members
 from app.schemas.poll import (
     PollDetail,
     PollOptionRead,
@@ -65,7 +66,7 @@ def _deadline(value):
     if value is None:
         return None
 
-    value = value.astimezone(timezone.utc).replace(tzinfo=None)
+    value = value.astimezone(timezone.utc)
 
     if value <= utc_now():
         fail(
@@ -159,6 +160,15 @@ def create_poll(db, *, actor_id, trip_id, data):
     )
 
     db.flush()
+
+    notify_trip_members(
+        db,
+        trip_id=trip_id,
+        title="Nueva votación",
+        message=f'Hay una nueva votación en {trip.name}: "{poll.question}".',
+        exclude_user_id=actor_id,
+    )
+
     audit(db, actor_id, "POLL_CREATE", poll)
 
     return _detail(db, poll)
@@ -186,6 +196,14 @@ def update_poll(db, *, actor_id, trip_id, poll_id, data):
 def close_poll(db, *, actor_id, trip_id, poll_id):
     poll = _managed(db, actor_id, trip_id, poll_id)
     poll.status = "CLOSED"
+
+    notify_trip_members(
+        db,
+        trip_id=trip_id,
+        title="Votación finalizada",
+        message=f'Ya puedes consultar los resultados de "{poll.question}".',
+        exclude_user_id=actor_id,
+    )
 
     audit(db, actor_id, "POLL_CLOSE", poll)
 

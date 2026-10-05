@@ -11,6 +11,7 @@ from app.schemas.expense import (
     ExpenseSplitRead,
 )
 from app.services.catalog_service import get_expense_category
+from app.services.notification_service import create_notification
 from app.services._shared import (
     MANAGERS,
     allow,
@@ -142,6 +143,19 @@ def create_expense(db, *, actor_id, trip_id, data):
     )
 
     db.flush()
+
+    for user_id in {
+        split.user_id
+        for split in data.splits
+        if split.user_id != actor_id
+    }:
+        create_notification(
+            db,
+            user_id=user_id,
+            title="Nuevo gasto compartido",
+            message=f'Se registró el gasto "{item.title}" en {trip.name}.',
+        )
+
     audit(db, actor_id, "EXPENSE_CREATE", item)
 
     return _detail(db, item)

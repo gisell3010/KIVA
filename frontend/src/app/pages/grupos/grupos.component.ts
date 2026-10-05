@@ -1,39 +1,57 @@
-import { Component, computed, inject, signal, OnInit } from '@angular/core';
+import { allPages } from '../../core/http/all-pages';
 import { CommonModule } from '@angular/common';
-import { GroupsApiService } from '../../data-access/api/groups-api.service';
-import { TripsApiService } from '../../data-access/api/trips-api.service';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
-import { GroupRead, GroupMemberRead, GroupCreate } from '../../shared/models/domain.models';
-import { formatDate } from '../../shared/utils/date.utils';
-import { PrivateImageComponent } from '../../shared/components/private-image/private-image.component';
 import { ApiError } from '../../core/http/error.interceptor';
+import { GroupsApiService } from '../../data-access/api/groups-api.service';
+import { UsersApiService } from '../../data-access/api/users-api.service';
+import {
+  GroupCreate,
+  GroupMemberRead,
+  GroupRead,
+  UserPublic,
+} from '../../shared/models/domain.models';
+import { UserAvatarComponent } from '../../shared/components/user-avatar/user-avatar.component';
+import { formatDate } from '../../shared/utils/date.utils';
 
 @Component({
   selector: 'app-grupos',
   standalone: true,
-  imports: [CommonModule, PrivateImageComponent],
+  imports: [CommonModule, FormsModule, UserAvatarComponent],
   templateUrl: './grupos.component.html',
-  styleUrl: './grupos.component.css'
+  styleUrl: './grupos.component.css',
 })
 export class GruposComponent implements OnInit {
-  private groupsApi = inject(GroupsApiService);
-  private tripsApi = inject(TripsApiService);
-  private authService = inject(AuthService);
+  private readonly groupsApi = inject(GroupsApiService);
+  private readonly usersApi = inject(UsersApiService);
+  private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
-  groups = signal<GroupRead[]>([]);
-  userGroups = signal<GroupRead[]>([]);
-  otherGroups = signal<GroupRead[]>([]);
-  loading = signal(false);
-  error = signal<string | null>(null);
+  readonly groups = signal<GroupRead[]>([]);
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly showCreate = signal(false);
+  readonly showManage = signal(false);
+  readonly selectedGroup = signal<GroupRead | null>(null);
+  readonly members = signal<GroupMemberRead[]>([]);
+  readonly userResults = signal<UserPublic[]>([]);
+  readonly searchText = signal('');
+  readonly searchingUsers = signal(false);
+  readonly addingUserId = signal<number | null>(null);
+  readonly form = signal<GroupCreate>({ name: '', description: null });
+  readonly saving = signal(false);
+  readonly currentUser = this.auth.user;
+  readonly formatDate = formatDate;
 
-  showModal = signal(false);
-  newName = signal('');
-  newDescription = signal('');
-
-  groupMembersCache = new Map<number, GroupMemberRead[]>();
-  groupTripsCache = new Map<number, number>();
-
-  currentUser = this.authService.user;
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer);
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.loadGroups();
@@ -41,161 +59,239 @@ export class GruposComponent implements OnInit {
 
   loadGroups(): void {
     this.loading.set(true);
-    this.error.set(null);
-
-    this.groupsApi.list({ page: 1, page_size: 100 }).subscribe({
-      next: (page) => {
-        this.groups.set(page.items);
-        this.splitGroups();
+    allPages(page => this.groupsApi.list({ page, page_size: 100 })).subscribe({
+      next: (p) => {
+        this.groups.set(p.items);
         this.loading.set(false);
       },
-      error: (err) => {
-        if (err instanceof ApiError) {
-          this.error.set(err.message);
-        } else {
-          this.error.set('Error al cargar los grupos');
-        }
+      error: (e) => {
         this.loading.set(false);
+        this.failError(e, 'Error al cargar los grupos.');
       },
     });
   }
 
-  splitGroups(): void {
-    const user = this.currentUser();
-    if (!user) {
-      this.userGroups.set([]);
-      this.otherGroups.set(this.groups());
-      return;
-    }
-
-    this.groupsApi.list({ page: 1, page_size: 100 }).subscribe({
-      next: (page) => {
-        const allGroups = page.items;
-        const memberGroupIds = new Set<number>();
-
-        for (const group of allGroups) {
-          if (group.my_role) {
-            memberGroupIds.add(group.id);
-          }
-        }
-
-        this.userGroups.set(allGroups.filter(g => memberGroupIds.has(g.id)));
-        this.otherGroups.set(allGroups.filter(g => !memberGroupIds.has(g.id)));
-
-        for (const group of allGroups) {
-          this.loadGroupDetails(group.id);
-        }
-      },
-      error: () => {
-        this.userGroups.set([]);
-        this.otherGroups.set(this.groups());
-      },
-    });
+  openCreateModal(): void {
+    this.form.set({ name: '', description: null });
+    this.showCreate.set(true);
   }
 
-  loadGroupDetails(groupId: number): void {
-    this.groupsApi.members(groupId, { page: 1, page_size: 100 }).subscribe({
-      next: (page) => {
-        this.groupMembersCache.set(groupId, page.items);
-      },
-    });
-
-    this.tripsApi.list({ group_id: groupId, page: 1, page_size: 1 }).subscribe({
-      next: (page) => {
-        this.groupTripsCache.set(groupId, page.total);
-      },
-    });
+  closeCreateModal(): void {
+    this.showCreate.set(false);
   }
 
-  getMemberCount(groupId: number): number {
-    return this.groupMembersCache.get(groupId)?.length || 0;
-  }
-
-  getTripCount(groupId: number): number {
-    return this.groupTripsCache.get(groupId) || 0;
-  }
-
-  getGroupMembers(groupId: number): GroupMemberRead[] {
-    return this.groupMembersCache.get(groupId) || [];
-  }
-
-  getUserRole(groupId: number): string | null {
-    const user = this.currentUser();
-    if (!user) return null;
-    const members = this.groupMembersCache.get(groupId);
-    if (!members) return null;
-    const member = members.find(m => m.user_id === user.id);
-    return member?.role || null;
-  }
-
-  statusBadge(status: string): string {
-    switch (status) {
-      case 'PLANNING':
-        return 'badge-orange';
-
-      case 'CONFIRMED':
-        return 'badge-blue';
-
-      case 'COMPLETED':
-        return 'badge-green';
-
-      case 'CANCELLED':
-        return 'badge-red';
-
-      default:
-        return 'badge-gray';
-    }
-  }
-
-  roleBadge(role: string): string {
-    switch (role) {
-      case 'OWNER': return 'badge-purple';
-      case 'MEMBER': return 'badge-blue';
-      default: return 'badge-gray';
-    }
-  }
-
-  roleLabel(role: string): string {
-    switch (role) {
-      case 'OWNER': return 'Propietario';
-      case 'MEMBER': return 'Miembro';
-      default: return role;
-    }
-  }
-
-  formatDate = formatDate;
-
-  openModal(): void {
-    this.showModal.set(true);
-  }
-
-  closeModal(): void {
-    this.showModal.set(false);
-    this.newName.set('');
-    this.newDescription.set('');
+  setForm(field: 'name' | 'description', value: string): void {
+    this.form.update((f) => ({
+      ...f,
+      [field]: field === 'description' ? value.trim() || null : value,
+    }));
   }
 
   createGroup(): void {
-    if (!this.newName().trim()) return;
+    const f = this.form();
+    if (!f.name.trim()) return;
+    this.saving.set(true);
+    this.groupsApi
+      .create({ name: f.name.trim(), description: f.description?.trim() || null })
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.closeCreateModal();
+          this.loadGroups();
+        },
+        error: (e) => {
+          this.saving.set(false);
+          this.failError(e, 'No se pudo crear el grupo.');
+        },
+      });
+  }
 
-    const data: GroupCreate = {
-      name: this.newName().trim(),
-      description: this.newDescription().trim() || null,
-    };
+  openManage(group: GroupRead): void {
+    this.selectedGroup.set(group);
+    this.form.set({ name: group.name, description: group.description });
+    this.showManage.set(true);
+    this.loadMembers(group.id);
+  }
 
-    this.groupsApi.create(data).subscribe({
-      next: (group) => {
-        this.groups.update(list => [group, ...list]);
-        this.splitGroups();
-        this.closeModal();
-      },
-      error: (err) => {
-        if (err instanceof ApiError) {
-          this.error.set(err.message);
-        } else {
-          this.error.set('Error al crear el grupo');
+  closeManage(): void {
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
+
+    this.showManage.set(false);
+    this.selectedGroup.set(null);
+    this.members.set([]);
+    this.userResults.set([]);
+    this.searchText.set('');
+    this.searchingUsers.set(false);
+    this.addingUserId.set(null);
+  }
+
+  loadMembers(groupId: number): void {
+    allPages(page => this.groupsApi.members(groupId, { page, page_size: 100 })).subscribe({
+      next: (p) => this.members.set(p.items),
+      error: (e) => this.failError(e, 'No se pudieron cargar los miembros.'),
+    });
+  }
+
+  saveGroup(): void {
+    const g = this.selectedGroup();
+    const f = this.form();
+    if (!g || g.my_role !== 'OWNER' || !f.name.trim()) return;
+    this.saving.set(true);
+    this.groupsApi
+      .update(g.id, { name: f.name.trim(), description: f.description?.trim() || null })
+      .subscribe({
+        next: (updated) => {
+          this.saving.set(false);
+          this.selectedGroup.set(updated);
+          this.loadGroups();
+        },
+        error: (e) => {
+          this.saving.set(false);
+          this.failError(e, 'No se pudo actualizar el grupo.');
+        },
+      });
+  }
+
+  onSearchTextChange(value: string): void {
+    this.searchText.set(value);
+    this.userResults.set([]);
+    this.error.set(null);
+
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
+
+    const query = value.trim();
+
+    if (query.length < 3) {
+      this.searchingUsers.set(false);
+      return;
+    }
+
+    this.searchingUsers.set(true);
+    this.searchTimer = setTimeout(() => this.searchUsers(query), 300);
+  }
+
+  private searchUsers(query: string): void {
+    this.usersApi.search(query, { page: 1, page_size: 10 }).subscribe({
+      next: (page) => {
+        if (this.searchText().trim() !== query) {
+          return;
         }
+
+        this.userResults.set(
+          page.items.filter(
+            (user) => !this.members().some((member) => member.user_id === user.id),
+          ),
+        );
+        this.searchingUsers.set(false);
+      },
+      error: (error) => {
+        if (this.searchText().trim() !== query) {
+          return;
+        }
+
+        this.userResults.set([]);
+        this.searchingUsers.set(false);
+        this.failError(error, 'No se pudo realizar la búsqueda.');
       },
     });
+  }
+
+  addMember(user: UserPublic): void {
+    const group = this.selectedGroup();
+
+    if (!group || group.my_role !== 'OWNER' || this.addingUserId()) {
+      return;
+    }
+
+    this.addingUserId.set(user.id);
+    this.error.set(null);
+
+    this.groupsApi.addMember(group.id, user.id).subscribe({
+      next: () => {
+        this.addingUserId.set(null);
+        this.userResults.set([]);
+        this.searchText.set('');
+        this.loadMembers(group.id);
+        this.loadGroups();
+      },
+      error: (error) => {
+        this.addingUserId.set(null);
+        this.failError(error, 'No se pudo agregar a esta persona al grupo.');
+      },
+    });
+  }
+
+  removeMember(member: GroupMemberRead): void {
+    const g = this.selectedGroup();
+    if (
+      !g ||
+      g.my_role !== 'OWNER' ||
+      member.role === 'OWNER' ||
+      !confirm(`¿Retirar a ${member.full_name} del grupo?`)
+    ) {
+      return;
+    }
+    this.groupsApi.removeMember(g.id, member.user_id).subscribe({
+      next: () => {
+        this.loadMembers(g.id);
+        this.loadGroups();
+      },
+      error: (e) => this.failError(e, 'No se pudo retirar el miembro.'),
+    });
+  }
+
+  transfer(member: GroupMemberRead): void {
+    const g = this.selectedGroup();
+    if (
+      !g ||
+      g.my_role !== 'OWNER' ||
+      member.role === 'OWNER' ||
+      !confirm(`¿Transferir la responsabilidad del grupo a ${member.full_name}? Tú continuarás como miembro.`)
+    ) {
+      return;
+    }
+    this.groupsApi.transferOwnership(g.id, member.user_id).subscribe({
+      next: () => {
+        this.closeManage();
+        this.loadGroups();
+      },
+      error: (e) => this.failError(e, 'No se pudo transferir la responsabilidad del grupo.'),
+    });
+  }
+
+  leave(group: GroupRead): void {
+    const user = this.currentUser();
+    if (!user || group.my_role === 'OWNER' || !confirm(`¿Salir del grupo ${group.name}?`)) return;
+    this.groupsApi.removeMember(group.id, user.id).subscribe({
+      next: () => this.loadGroups(),
+      error: (e) =>
+        this.failError(e, 'No puedes salir mientras tengas participación en viajes del grupo.'),
+    });
+  }
+
+  deleteGroup(): void {
+    const g = this.selectedGroup();
+    if (!g || g.my_role !== 'OWNER' || !confirm(`¿Eliminar el grupo ${g.name}?`)) return;
+    this.groupsApi.delete(g.id).subscribe({
+      next: () => {
+        this.closeManage();
+        this.loadGroups();
+      },
+      error: (e) => this.failError(e, 'El grupo no puede eliminarse mientras tenga viajes.'),
+    });
+  }
+
+  roleLabel(role: string): string {
+    return role === 'OWNER' ? 'Responsable del grupo' : 'Miembro';
+  }
+
+  private failError(e: unknown, f: string): void {
+    this.error.set(e instanceof ApiError ? e.message : f);
   }
 }

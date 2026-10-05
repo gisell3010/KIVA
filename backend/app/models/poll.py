@@ -1,8 +1,15 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    CheckConstraint, DateTime, ForeignKey, Identity, Index,
-    Integer, String, UniqueConstraint, text,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,11 +23,15 @@ class Poll(Base):
             "status IN ('OPEN', 'CLOSED')",
             name="chk_polls_status",
         ),
-        Index("idx_polls_trip", "trip_id"),
+        Index(
+            "idx_polls_trip",
+            "trip_id",
+        ),
         {"schema": "app"},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
+
     trip_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(
@@ -29,9 +40,17 @@ class Poll(Base):
             ondelete="CASCADE",
         ),
     )
+
     question: Mapped[str] = mapped_column(String(250))
-    status: Mapped[str] = mapped_column(String(20), server_default="OPEN")
-    closes_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        server_default="OPEN",
+    )
+
+    closes_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
 
 
 class PollOption(Base):
@@ -50,6 +69,7 @@ class PollOption(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
+
     poll_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(
@@ -58,6 +78,7 @@ class PollOption(Base):
             ondelete="CASCADE",
         ),
     )
+
     option_number: Mapped[int] = mapped_column(Integer)
     option_text: Mapped[str] = mapped_column(String(200))
 
@@ -70,11 +91,15 @@ class Vote(Base):
             "user_id",
             name="uq_votes_option_user",
         ),
-        Index("idx_votes_user", "user_id"),
+        Index(
+            "idx_votes_user",
+            "user_id",
+        ),
         {"schema": "app"},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
+
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(
@@ -83,6 +108,7 @@ class Vote(Base):
             ondelete="RESTRICT",
         ),
     )
+
     option_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(
@@ -91,7 +117,8 @@ class Vote(Base):
             ondelete="CASCADE",
         ),
     )
+
     voted_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
     )

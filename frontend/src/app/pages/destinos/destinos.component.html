@@ -1,185 +1,177 @@
 <div class="page-head">
   <div>
-    <h1 class="page-title">
-      Destinos propuestos
-    </h1>
-
-    <p class="page-subtitle">
-      Compara los destinos de cada viaje.
-    </p>
+    <h1 class="page-title">Destinos</h1>
+    <p class="page-subtitle">Propón, selecciona y documenta los lugares del viaje.</p>
   </div>
+  @if (filterTrip()) {
+    <button class="btn btn-primary" type="button" (click)="openCreate()">Proponer destino</button>
+  }
+</div>
 
+<div class="card filter-card">
+  <label for="tripDestinations">Viaje</label>
   <select
-    aria-label="Filtrar destinos por viaje"
-    class="filter-select"
+    id="tripDestinations"
+    class="form-input"
     [value]="filterTrip() ?? ''"
-    [disabled]="loading()"
     (change)="onTripSelect($event)"
   >
-    <option value="">
-      Seleccionar un viaje
-    </option>
-
     @for (trip of trips(); track trip.id) {
-      <option [value]="trip.id">
-        {{ trip.name }} ({{ groupName(trip.group_id) }})
-      </option>
+      <option [value]="trip.id">{{ trip.name }} · {{ groupName(trip.group_id) }}</option>
     }
   </select>
+  @if (selectedTrip()) {
+    <p class="permissions-note">Tu función: {{ roleLabel(selectedTrip()?.my_role) }}</p>
+  }
 </div>
 
 @if (error()) {
-  <div
-    class="error-banner"
-    role="alert"
-  >
-    <svg
-      class="ui-icon"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="10"
-      />
-
-      <path d="M12 8v4M12 16h.01" />
-    </svg>
-
-    {{ error() }}
+  <div class="error-banner" role="alert">{{ error() }}</div>
+}
+@if (loading()) {
+  <div class="loading-state">
+    <p>Cargando destinos...</p>
   </div>
 }
 
-@if (loading()) {
-  <div class="loading-state">
-    <svg
-      class="ui-icon animate-spin"
-      width="32"
-      height="32"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-    >
-      <path d="M21 12a9 9 0 11-6.219-8.56" />
-    </svg>
-
-    <p>
-      Cargando destinos...
-    </p>
-  </div>
-} @else {
-  <div class="grid grid-cols-3">
-    @for (
-      destination of filteredDestinations();
-      track destination.id
-    ) {
-      <div class="card destino-card">
-        <div class="destino-top">
-          <svg
-            class="ui-icon destino-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.75"
-            aria-hidden="true"
-          >
-            <path
-              d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-
-          <span class="badge badge-gray">
-            {{ tripName(destination.trip_id) }}
-          </span>
-        </div>
-
-        <h3>
-          {{ destination.place_name }},
-          {{ destination.country }}
-        </h3>
-
-        <p class="destino-desc">
-          {{ destinationDescription(destination.description) }}
-        </p>
-
-        @if (getPhotos(destination.id).length > 0) {
-          <div class="destino-photos">
-            @for (
-              photo of getPhotos(destination.id).slice(0, 3);
-              track photo.id
-            ) {
-              <app-private-image
-                [src]="'/trips/' + destination.trip_id + '/destinations/' + destination.id + '/photos/' + photo.id + '/file'"
-                [alt]="'Foto de ' + destination.place_name"
-                width="80px"
-                height="60px"
-                objectFit="cover"
-                borderRadius="6px"
-              ></app-private-image>
-            }
-
-            @if (getPhotos(destination.id).length > 3) {
-              <span class="photo-count">
-                +{{ getPhotos(destination.id).length - 3 }} más
-              </span>
-            }
-          </div>
-        }
-
-        <div class="selection-status">
+<div class="grid grid-cols-3">
+  @for (destination of destinations(); track destination.id) {
+    <article class="card destino-card">
+      <div class="destination-title-row">
+        <div>
           <span
             class="badge"
             [class.badge-green]="destination.is_selected"
             [class.badge-gray]="!destination.is_selected"
           >
-            {{
-              destination.is_selected
-                ? 'Seleccionado'
-                : 'No seleccionado'
-            }}
+            {{ destination.is_selected ? 'Seleccionado' : 'Propuesta' }}
           </span>
+          <h3>{{ destination.place_name }}, {{ destination.country }}</h3>
         </div>
       </div>
-    }
-  </div>
+      <p>{{ destination.description || 'Sin descripción.' }}</p>
 
-  @if (filteredDestinations().length === 0) {
-    <div class="card empty-state">
-      <svg
-        class="ui-icon"
-        width="48"
-        height="48"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
-        style="margin: 0 auto 16px; opacity: 0.4;"
-      >
-        <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15" />
-      </svg>
+      @if (getPhotos(destination.id).length) {
+        <div class="destino-photos">
+          @for (photo of getPhotos(destination.id); track photo.id) {
+            <div class="photo-item">
+              <app-private-image
+                [src]="photoSrc(destination, photo)"
+                [alt]="'Foto de ' + destination.place_name"
+                width="100%"
+                height="180px"
+                objectFit="cover"
+                borderRadius="8px"
+              ></app-private-image>
+              @if (photo.uploaded_by_user_id === currentUser()?.id || canManage()) {
+                <button
+                  class="photo-remove"
+                  type="button"
+                  aria-label="Eliminar fotografía"
+                  (click)="deletePhoto(destination, photo)"
+                >
+                  ×
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
 
-      <h3>
-        No hay destinos propuestos
-      </h3>
-
-      <p>
-        @if (filterTrip() === null) {
-          Selecciona un viaje para ver sus destinos.
-        } @else {
-          Este viaje todavía no tiene destinos propuestos.
+      <div class="card-actions">
+        <label class="btn btn-outline btn-sm" [attr.aria-busy]="uploadingDestinationId() === destination.id">
+          {{ uploadingDestinationId() === destination.id ? 'Cargando foto...' : 'Añadir foto' }}
+          <input
+            class="sr-only"
+            type="file"
+            [disabled]="uploadingDestinationId() !== null"
+            accept="image/jpeg,image/png,image/webp"
+            (change)="uploadPhoto(destination, $event)"
+          />
+        </label>
+        @if (canManage()) {
+          <button
+            class="btn btn-outline btn-sm"
+            type="button"
+            (click)="toggleSelection(destination)"
+          >
+            {{ destination.is_selected ? 'Quitar selección' : 'Seleccionar' }}
+          </button>
         }
-      </p>
-    </div>
+        @if (canEdit(destination)) {
+          <button class="btn btn-ghost btn-sm" type="button" (click)="openEdit(destination)">
+            Editar
+          </button>
+          <button
+            class="btn btn-ghost btn-sm"
+            type="button"
+            (click)="deleteDestination(destination)"
+          >
+            Eliminar
+          </button>
+        }
+      </div>
+    </article>
   }
+</div>
+
+@if (!loading() && filterTrip() && destinations().length === 0) {
+  <div class="card empty-state">
+    <h3>Aún no hay destinos</h3>
+    <p>Propón el primer lugar para este viaje.</p>
+  </div>
+}
+
+@if (showForm()) {
+  <div class="modal-overlay" (click)="closeForm()">
+    <div class="modal-box" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <h3>{{ editingId() ? 'Editar destino' : 'Proponer destino' }}</h3>
+      <form class="context-form" (ngSubmit)="saveDestination()">
+        <div class="context-form-grid">
+          <div>
+            <label for="country">País</label>
+            <input
+              id="country"
+              class="form-input"
+              name="country"
+              required
+              maxlength="100"
+              [ngModel]="form().country"
+              (ngModelChange)="setField('country', $event)"
+            />
+          </div>
+          <div>
+            <label for="place">Lugar</label>
+            <input
+              id="place"
+              class="form-input"
+              name="place"
+              required
+              maxlength="150"
+              [ngModel]="form().place_name"
+              (ngModelChange)="setField('place_name', $event)"
+            />
+          </div>
+        </div>
+        <div>
+          <label for="destinationDescription">Descripción</label>
+          <textarea
+            id="destinationDescription"
+            class="form-input"
+            name="description"
+            rows="3"
+            maxlength="300"
+            [ngModel]="form().description ?? ''"
+            (ngModelChange)="setField('description', $event)"
+          ></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" type="button" (click)="closeForm()">Cancelar</button>
+          <button class="btn btn-primary" type="submit" [disabled]="saving()">
+            {{ saving() ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 }

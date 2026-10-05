@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import AppError
 from app.models.notification import Notification
+from app.models.trip import TripMember
 from app.models.user import User
 from app.schemas.common import Page, PaginationParams
 from app.schemas.notification import (
@@ -61,6 +62,43 @@ def create_notification(
 
     db.add(notification)
     return notification
+
+
+def notify_trip_members(
+    db: Session,
+    *,
+    trip_id: int,
+    title: str,
+    message: str,
+    exclude_user_id: int | None = None,
+) -> None:
+    """Crea una notificación para los participantes activos de un viaje.
+
+    Se usa para acontecimientos colaborativos que todos los participantes del
+    viaje deben conocer. El usuario que origina el cambio puede excluirse para
+    evitar notificaciones redundantes sobre su propia acción.
+    """
+    statement = (
+        select(TripMember.user_id)
+        .join(User, User.id == TripMember.user_id)
+        .where(
+            TripMember.trip_id == trip_id,
+            User.status == "ACTIVE",
+        )
+    )
+
+    if exclude_user_id is not None:
+        statement = statement.where(
+            TripMember.user_id != exclude_user_id
+        )
+
+    for user_id in db.scalars(statement).all():
+        create_notification(
+            db,
+            user_id=user_id,
+            title=title,
+            message=message,
+        )
 
 
 def list_notifications(

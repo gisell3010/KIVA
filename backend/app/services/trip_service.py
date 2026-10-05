@@ -1,5 +1,4 @@
 from sqlalchemy import func, or_, select, update
-
 from app.models.activity import Activity
 from app.models.destination import Destination
 from app.models.destination_photo import DestinationPhoto
@@ -9,7 +8,7 @@ from app.models.poll import Poll, PollOption, Vote
 from app.models.trip import Trip, TripMember
 from app.models.user import User
 from app.schemas.trip import TripMemberRead, TripRead
-from app.services.notification_service import create_notification
+from app.services.notification_service import create_notification, notify_trip_members
 from app.services._shared import (
     MANAGERS,
     active_user,
@@ -28,7 +27,6 @@ from app.services._shared import (
     visible_trips,
 )
 from app.storage.destination_images import remove_image
-
 
 def trip_query(actor_id):
     members_count = (
@@ -83,7 +81,6 @@ def trip_query(actor_id):
         TravelGroup.id == Trip.group_id,
     )
 
-
 def _member_query():
     return select(
         TripMember.id,
@@ -95,7 +92,6 @@ def _member_query():
         User.profile_image,
     ).join(User, User.id == TripMember.user_id)
 
-
 def _read_trip(db, actor_id, trip_id):
     row = db.execute(
         trip_query(actor_id).where(Trip.id == trip_id)
@@ -106,7 +102,6 @@ def _read_trip(db, actor_id, trip_id):
 
     return TripRead.model_validate(row)
 
-
 def _read_member(db, member_id):
     row = db.execute(
         _member_query().where(
@@ -116,13 +111,13 @@ def _read_member(db, member_id):
 
     return TripMemberRead.model_validate(row)
 
-
 def list_trips(
     db,
     *,
     actor_id,
     pagination,
     group_id=None,
+    status=None,
 ):
     active_user(db, actor_id)
 
@@ -136,6 +131,9 @@ def list_trips(
             Trip.group_id == group_id
         )
 
+    if status is not None:
+        statement = statement.where(Trip.status == status)
+
     return mapped_page(
         db,
         statement.order_by(
@@ -146,11 +144,9 @@ def list_trips(
         TripRead,
     )
 
-
 def get_trip(db, *, actor_id, trip_id):
     trip_access(db, actor_id, trip_id)
     return _read_trip(db, actor_id, trip_id)
-
 
 @atomic
 def create_trip(db, *, actor_id, data):
@@ -182,7 +178,6 @@ def create_trip(db, *, actor_id, data):
     db.flush()
     return _read_trip(db, actor_id, trip.id)
 
-
 @atomic
 def update_trip(db, *, actor_id, trip_id, data):
     trip, member = trip_access(
@@ -192,7 +187,7 @@ def update_trip(db, *, actor_id, trip_id, data):
         lock=True,
     )
 
-    allow(member.role, MANAGERS)
+    allow(member.role, {"OWNER"})
     editable(trip)
 
     changes = data.model_dump(exclude_unset=True)
@@ -247,7 +242,26 @@ def update_trip(db, *, actor_id, trip_id, data):
             "INVALID_STATUS",
         )
 
+    previous_status = trip.status
     apply_patch(trip, data)
+
+    if trip.status != previous_status:
+        status_labels = {
+            "PLANNING": "Planificando",
+            "CONFIRMED": "Confirmado",
+            "COMPLETED": "Completado",
+            "CANCELLED": "Cancelado",
+        }
+        notify_trip_members(
+            db,
+            trip_id=trip_id,
+            title="Estado del viaje actualizado",
+            message=(
+                f'{trip.name} ahora está en estado '
+                f'"{status_labels.get(trip.status, trip.status)}".'
+            ),
+            exclude_user_id=actor_id,
+        )
 
     if trip.status in {"COMPLETED", "CANCELLED"}:
         db.execute(
@@ -264,7 +278,6 @@ def update_trip(db, *, actor_id, trip_id, data):
     db.flush()
     return _read_trip(db, actor_id, trip.id)
 
-
 def list_members(db, *, actor_id, trip_id, pagination):
     trip_access(db, actor_id, trip_id)
 
@@ -276,7 +289,6 @@ def list_members(db, *, actor_id, trip_id, pagination):
         pagination,
         TripMemberRead,
     )
-
 
 @atomic
 def add_member(db, *, actor_id, trip_id, data):
@@ -335,7 +347,6 @@ def add_member(db, *, actor_id, trip_id, data):
 
     return result
 
-
 @atomic
 def update_member(
     db,
@@ -362,11 +373,20 @@ def update_member(
         )
 
     member.role = data.role
+
+    if actor_id != user_id:
+        role_label = "Organizador" if data.role == "ORGANIZER" else "Participante"
+        create_notification(
+            db,
+            user_id=user_id,
+            title="Tu función en el viaje cambió",
+            message=f"Ahora participas como {role_label} en {trip.name}.",
+        )
+
     audit(db, actor_id, "TRIP_MEMBER_UPDATE", member)
 
     db.flush()
     return _read_member(db, member.id)
-
 
 @atomic
 def remove_member(db, *, actor_id, trip_id, user_id):
@@ -432,9 +452,16 @@ def remove_member(db, *, actor_id, trip_id, user_id):
             "MEMBER_HAS_RECORDS",
         )
 
+    if actor_id != user_id:
+        create_notification(
+            db,
+            user_id=user_id,
+            title="Cambio en un viaje",
+            message=f"Ya no formas parte del viaje {trip.name}.",
+        )
+
     audit(db, actor_id, "TRIP_MEMBER_REMOVE", member)
     db.delete(member)
-
 
 @atomic
 def transfer_ownership(db, *, actor_id, trip_id, data):
@@ -457,11 +484,18 @@ def transfer_ownership(db, *, actor_id, trip_id, data):
     if successor.id != owner.id:
         owner.role = "ORGANIZER"
         successor.role = "OWNER"
+
+        create_notification(
+            db,
+            user_id=data.new_owner_user_id,
+            title="Ahora eres responsable del viaje",
+            message=f"Te transfirieron la responsabilidad de {trip.name}.",
+        )
+
         audit(db, actor_id, "TRIP_OWNER_CHANGE", trip)
 
     db.flush()
     return _read_member(db, successor.id)
-
 
 @atomic
 def delete_trip(db, *, actor_id, trip_id):

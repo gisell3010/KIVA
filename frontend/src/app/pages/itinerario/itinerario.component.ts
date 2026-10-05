@@ -1,12 +1,21 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { allPages } from '../../core/http/all-pages';
 import { CommonModule } from '@angular/common';
-import { ActivitiesApiService } from '../../data-access/api/activities-api.service';
-import { TripsApiService } from '../../data-access/api/trips-api.service';
-import { GroupsApiService } from '../../data-access/api/groups-api.service';
-import { TripRead, ActivityRead, GroupRead } from '../../shared/models/domain.models';
-import { formatMoney } from '../../shared/utils/money.utils';
-import { formatDate } from '../../shared/utils/date.utils';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ApiError } from '../../core/http/error.interceptor';
+import { ActivitiesApiService } from '../../data-access/api/activities-api.service';
+import { GroupsApiService } from '../../data-access/api/groups-api.service';
+import { TripsApiService } from '../../data-access/api/trips-api.service';
+import {
+  ActivityCreate,
+  ActivityRead,
+  ActivityStatus,
+  GroupRead,
+  TripRead,
+} from '../../shared/models/domain.models';
+import { formatDate } from '../../shared/utils/date.utils';
+import { formatMoney } from '../../shared/utils/money.utils';
+import { isTripManager } from '../../shared/utils/permissions.utils';
 
 interface ItineraryDay {
   date: string;
@@ -17,9 +26,9 @@ interface ItineraryDay {
 @Component({
   selector: 'app-itinerario',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './itinerario.component.html',
-  styleUrl: './itinerario.component.css'
+  styleUrl: './itinerario.component.css',
 })
 export class ItinerarioComponent implements OnInit {
   private readonly activitiesApi = inject(ActivitiesApiService);
@@ -28,13 +37,41 @@ export class ItinerarioComponent implements OnInit {
 
   readonly trips = signal<TripRead[]>([]);
   readonly groups = signal<GroupRead[]>([]);
-
   readonly selectedTripId = signal<number | null>(null);
-  readonly itineraryDays = signal<ItineraryDay[]>([]);
-
+  readonly activities = signal<ActivityRead[]>([]);
   readonly loading = signal(false);
+  readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly showForm = signal(false);
+  readonly editingId = signal<number | null>(null);
+  readonly form = signal<ActivityCreate>({
+    title: '',
+    description: null,
+    location: null,
+    activity_date: '',
+    start_time: null,
+    estimated_cost: null,
+  });
 
+  readonly selectedTrip = computed(
+    () => this.trips().find((t) => t.id === this.selectedTripId()) ?? null,
+  );
+  readonly canManage = computed(() => isTripManager(this.selectedTrip()));
+  readonly itineraryDays = computed<ItineraryDay[]>(() => {
+    const groups = new Map<string, ActivityRead[]>();
+    for (const activity of this.activities()) {
+      const list = groups.get(activity.activity_date) ?? [];
+      list.push(activity);
+      groups.set(activity.activity_date, list);
+    }
+    return [...groups.keys()].sort().map((date, index) => ({
+      date,
+      dayNumber: index + 1,
+      activities: [...(groups.get(date) ?? [])].sort((a, b) =>
+        (a.start_time ?? '23:59').localeCompare(b.start_time ?? '23:59'),
+      ),
+    }));
+  });
   readonly formatMoney = formatMoney;
   readonly formatDate = formatDate;
 
@@ -43,155 +80,158 @@ export class ItinerarioComponent implements OnInit {
     this.loadTrips();
   }
 
-  loadTrips(): void {
-    this.tripsApi.list({
-      page: 1,
-      page_size: 100
-    }).subscribe({
-      next: page => {
-        this.trips.set(page.items);
-
-        if (
-          page.items.length > 0 &&
-          this.selectedTripId() === null
-        ) {
-          const tripId = page.items[0].id;
-
-          this.selectedTripId.set(tripId);
-          this.loadItinerary(tripId);
-        }
-      },
-
-      error: () => {
-        this.trips.set([]);
-        this.selectedTripId.set(null);
-        this.itineraryDays.set([]);
-        this.error.set(
-          'No se pudieron cargar los viajes.'
-        );
-      }
+  loadGroups(): void {
+    allPages(page => this.groupsApi.list({ page, page_size: 100 })).subscribe({
+      next: (p) => this.groups.set(p.items),
+      error: () => this.groups.set([]),
     });
   }
 
-  loadGroups(): void {
-    this.groupsApi.list({
-      page: 1,
-      page_size: 100
-    }).subscribe({
-      next: page => {
-        this.groups.set(page.items);
+  loadTrips(): void {
+    allPages(page => this.tripsApi.list({ page, page_size: 100 })).subscribe({
+      next: (p) => {
+        this.trips.set(p.items);
+        if (p.items.length && this.selectedTripId() === null) {
+          this.selectedTripId.set(p.items[0].id);
+          this.loadItinerary(p.items[0].id);
+        }
       },
-
-      error: () => {
-        this.groups.set([]);
-      }
+      error: () => this.fail('No se pudieron cargar los viajes.'),
     });
   }
 
   loadItinerary(tripId: number): void {
     this.loading.set(true);
     this.error.set(null);
-
-    this.activitiesApi.list(
-      tripId,
-      {
-        page: 1,
-        page_size: 100
-      }
-    ).subscribe({
-      next: page => {
-        const daysMap = new Map<string, ActivityRead[]>();
-
-        for (const activity of page.items) {
-          if (!activity.activity_date) {
-            continue;
-          }
-
-          const date = activity.activity_date.split('T')[0];
-
-          const activities = daysMap.get(date) ?? [];
-
-          activities.push(activity);
-          daysMap.set(date, activities);
-        }
-
-        const sortedDates = Array.from(
-          daysMap.keys()
-        ).sort();
-
-        const days: ItineraryDay[] = sortedDates.map(
-          (date, index) => {
-            const activities = [
-              ...(daysMap.get(date) ?? [])
-            ].sort((a, b) => {
-              const timeA = a.start_time ?? '23:59';
-              const timeB = b.start_time ?? '23:59';
-
-              return timeA.localeCompare(timeB);
-            });
-
-            return {
-              date,
-              dayNumber: index + 1,
-              activities
-            };
-          }
-        );
-
-        this.itineraryDays.set(days);
+    allPages(page => this.activitiesApi.list(tripId, { page, page_size: 100 })).subscribe({
+      next: (p) => {
+        this.activities.set(p.items);
         this.loading.set(false);
       },
-
-      error: (err: unknown) => {
-        this.itineraryDays.set([]);
-
-        if (err instanceof ApiError) {
-          this.error.set(err.message);
-        } else {
-          this.error.set(
-            'Error al cargar el itinerario.'
-          );
-        }
-
+      error: (e) => {
+        this.activities.set([]);
         this.loading.set(false);
-      }
+        this.failError(e, 'Error al cargar el itinerario.');
+      },
     });
   }
 
   onTripSelect(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    const value = select.value;
-
-    if (value === '') {
+    const id = Number((event.target as HTMLSelectElement).value);
+    this.closeForm();
+    if (!id) {
       this.selectedTripId.set(null);
-      this.itineraryDays.set([]);
-      this.error.set(null);
+      this.activities.set([]);
       return;
     }
-
-    const tripId = parseInt(value, 10);
-
-    if (isNaN(tripId)) {
-      this.selectedTripId.set(null);
-      this.itineraryDays.set([]);
-      return;
-    }
-
-    this.selectedTripId.set(tripId);
-    this.loadItinerary(tripId);
+    this.selectedTripId.set(id);
+    this.loadItinerary(id);
   }
 
-  groupName(groupId: number): string {
-    return this.groups().find(
-      group => group.id === groupId
-    )?.name || 'Grupo';
+  openCreate(): void {
+    const trip = this.selectedTrip();
+    if (!trip) return;
+    this.editingId.set(null);
+    this.form.set({
+      title: '',
+      description: null,
+      location: null,
+      activity_date: trip.start_date ?? '',
+      start_time: null,
+      estimated_cost: null,
+    });
+    this.showForm.set(true);
   }
 
-  activityLocation(location: string | null): string {
-    return location?.trim() || 'Ubicación no especificada';
+  openEdit(item: ActivityRead): void {
+    if (!this.canManage()) return;
+    this.editingId.set(item.id);
+    this.form.set({
+      title: item.title,
+      description: item.description,
+      location: item.location,
+      activity_date: item.activity_date,
+      start_time: item.start_time,
+      estimated_cost: item.estimated_cost,
+    });
+    this.showForm.set(true);
   }
 
-  activityDescription(description: string | null): string {
-    return description?.trim() || 'Sin descripción';
+  closeForm(): void {
+    this.showForm.set(false);
+    this.editingId.set(null);
+  }
+
+  setField(field: keyof ActivityCreate, value: string): void {
+    this.form.update((current) => ({
+      ...current,
+      [field]: ['description', 'location', 'start_time', 'estimated_cost'].includes(field)
+        ? value || null
+        : value,
+    }));
+  }
+
+  saveActivity(): void {
+    const tripId = this.selectedTripId();
+    const data = this.form();
+    if (!tripId || !data.title.trim() || !data.activity_date) return;
+
+    this.saving.set(true);
+    const payload: ActivityCreate = {
+      ...data,
+      title: data.title.trim(),
+      description: data.description?.trim() || null,
+      location: data.location?.trim() || null,
+      estimated_cost: data.estimated_cost ? String(data.estimated_cost) : null,
+    };
+    const request = this.editingId()
+      ? this.activitiesApi.update(tripId, this.editingId()!, payload)
+      : this.activitiesApi.create(tripId, payload);
+
+    request.subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.closeForm();
+        this.loadItinerary(tripId);
+      },
+      error: (e) => {
+        this.saving.set(false);
+        this.failError(e, 'No se pudo guardar la actividad.');
+      },
+    });
+  }
+
+  setStatus(item: ActivityRead, status: ActivityStatus): void {
+    const tripId = this.selectedTripId();
+    if (!tripId || !this.canManage()) return;
+    this.activitiesApi.update(tripId, item.id, { status }).subscribe({
+      next: () => this.loadItinerary(tripId),
+      error: (e) => this.failError(e, 'No se pudo cambiar el estado.'),
+    });
+  }
+
+  deleteActivity(item: ActivityRead): void {
+    const tripId = this.selectedTripId();
+    if (!tripId || !this.canManage() || !confirm(`¿Eliminar ${item.title}?`)) return;
+    this.activitiesApi.delete(tripId, item.id).subscribe({
+      next: () => this.loadItinerary(tripId),
+      error: (e) => this.failError(e, 'No se pudo eliminar la actividad.'),
+    });
+  }
+
+  groupName(id: number): string {
+    return this.groups().find((g) => g.id === id)?.name || 'Grupo';
+  }
+
+  statusLabel(status: ActivityStatus): string {
+    return { PROPOSED: 'Propuesta', APPROVED: 'Aprobada', CANCELLED: 'Cancelada' }[status];
+  }
+
+  private fail(message: string): void {
+    this.error.set(message);
+  }
+
+  private failError(error: unknown, fallback: string): void {
+    this.error.set(error instanceof ApiError ? error.message : fallback);
   }
 }

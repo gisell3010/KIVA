@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.models.destination import Destination
 from app.models.destination_photo import DestinationPhoto
 from app.schemas.destination import DestinationRead
+from app.services.notification_service import notify_trip_members
 from app.services._shared import (
     MANAGERS,
     after_transaction,
@@ -126,7 +127,18 @@ def select_destination(
     editable(trip)
     allow(member.role, MANAGERS)
 
+    was_selected = item.is_selected
     item.is_selected = data.is_selected
+
+    if data.is_selected and not was_selected:
+        notify_trip_members(
+            db,
+            trip_id=trip_id,
+            title="Destino seleccionado",
+            message=f"{item.place_name}, {item.country} fue seleccionado para {trip.name}.",
+            exclude_user_id=actor_id,
+        )
+
     audit(db, actor_id, "DESTINATION_SELECT", item)
 
     return saved(db, item, DestinationRead)

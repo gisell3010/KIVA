@@ -1,8 +1,14 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, DateTime, ForeignKey, Identity,
-    Index, Integer, String, text,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Index,
+    Integer,
+    String,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,6 +27,7 @@ class Notification(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
+
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(
@@ -29,13 +36,16 @@ class Notification(Base):
             ondelete="CASCADE",
         ),
     )
+
     title: Mapped[str] = mapped_column(String(150))
     message: Mapped[str] = mapped_column(String(300))
+
     is_read: Mapped[bool] = mapped_column(
         Boolean,
         server_default=text("false"),
     )
+
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
     )

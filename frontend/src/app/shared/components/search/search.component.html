@@ -6,7 +6,7 @@
     </svg>
     <input
       type="text"
-      placeholder="Buscar grupos, destinos, participantes, viajes..."
+      placeholder="Buscar grupos, personas o viajes..."
       aria-label="Buscar"
       [value]="query()"
       (input)="onInput($event)"
@@ -48,7 +48,7 @@
             </a>
           }
         </div>
-      } @else if (query().length >= 2) {
+      } @else if (query().length >= 3) {
         <div class="no-results">
           <svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
             <circle cx="11" cy="11" r="7"/>
@@ -58,7 +58,7 @@
         </div>
       } @else if (query().length > 0) {
         <div class="search-hint">
-          <p>Escribe al menos 2 caracteres para buscar</p>
+          <p>Escribe al menos 3 caracteres para buscar</p>
         </div>
       }
     </div>

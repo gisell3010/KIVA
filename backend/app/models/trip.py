@@ -1,8 +1,16 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
-    CheckConstraint, Date, DateTime, ForeignKey, Identity,
-    Index, Integer, String, UniqueConstraint, text,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,11 +28,15 @@ class Trip(Base):
             "status IN ('PLANNING', 'CONFIRMED', 'COMPLETED', 'CANCELLED')",
             name="chk_trips_status",
         ),
-        Index("idx_trips_group", "group_id"),
+        Index(
+            "idx_trips_group",
+            "group_id",
+        ),
         {"schema": "app"},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
+
     group_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(
@@ -33,13 +45,20 @@ class Trip(Base):
             ondelete="RESTRICT",
         ),
     )
+
     name: Mapped[str] = mapped_column(String(150))
     description: Mapped[str | None] = mapped_column(String(300))
+
     start_date: Mapped[date | None] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date)
-    status: Mapped[str] = mapped_column(String(20), server_default="PLANNING")
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        server_default="PLANNING",
+    )
+
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         server_default=text("CURRENT_TIMESTAMP"),
     )
 
@@ -51,12 +70,20 @@ class TripMember(Base):
             "role IN ('OWNER', 'ORGANIZER', 'MEMBER')",
             name="chk_trip_members_role",
         ),
-        UniqueConstraint("trip_id", "user_id", name="uq_trip_members"),
-        Index("idx_trip_members_user", "user_id"),
+        UniqueConstraint(
+            "trip_id",
+            "user_id",
+            name="uq_trip_members",
+        ),
+        Index(
+            "idx_trip_members_user",
+            "user_id",
+        ),
         {"schema": "app"},
     )
 
     id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
+
     trip_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(
@@ -65,6 +92,7 @@ class TripMember(Base):
             ondelete="CASCADE",
         ),
     )
+
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(
@@ -73,4 +101,8 @@ class TripMember(Base):
             ondelete="RESTRICT",
         ),
     )
-    role: Mapped[str] = mapped_column(String(20), server_default="MEMBER")
+
+    role: Mapped[str] = mapped_column(
+        String(20),
+        server_default="MEMBER",
+    )

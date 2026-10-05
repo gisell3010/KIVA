@@ -42,7 +42,7 @@ def _open_polls(now):
 def get_dashboard(db, *, actor_id, today=None):
     active_user(db, actor_id)
 
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     today = today or now.date()
 
     trip_ids = visible_trips(actor_id)
@@ -103,7 +103,7 @@ def get_admin_dashboard(db, *, actor_id):
     actor = active_user(db, actor_id)
     allow(actor.role, {"SUPER_ADMIN", "ADMIN"})
 
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
 
     users_by_role = {
         role: 0

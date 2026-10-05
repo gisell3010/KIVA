@@ -1,116 +1,216 @@
-# Base de datos de KIVA
+# Base de Datos de KIVA
 
 KIVA significa Kinship, Inspiration, Voyages & Adventures:
 vínculos, inspiración, viajes y aventuras.
 
-La base utiliza PostgreSQL y contiene 19 tablas distribuidas en los
-esquemas `auth`, `app` y `audit`, 20 índices adicionales y dos catálogos
-iniciales.
+La base de datos utiliza PostgreSQL 16 y contiene 19 tablas distribuidas en los esquemas `auth`, `app` y `audit`, 20 índices adicionales y dos catálogos iniciales.
 
 ## Archivos
 
 | Archivo | Función |
 |---|---|
-| `schema/kiva.dbml` | Modelo de tablas y relaciones. |
-| `scripts/00_create_schemas.sql` | Crea los esquemas. |
-| `scripts/01_create_tables.sql` | Crea las tablas y sus restricciones. |
-| `scripts/02_indexes.sql` | Crea los índices adicionales. |
-| `seeds/01_expense_categories.sql` | Inserta cinco categorías de gastos. |
-| `seeds/02_reservation_types.sql` | Inserta cinco tipos de reservas. |
-| `install.sql` | Ejecuta la instalación mediante psql. |
+| `schema/kivadb.dbml` | Modelo de tablas y relaciones en formato DBML. |
+| `scripts/00_create_schemas.sql` | Crea los esquemas `auth`, `app` y `audit`. |
+| `scripts/01_create_tables.sql` | Crea las 19 tablas con sus restricciones. |
+| `scripts/02_indexes.sql` | Crea 20 índices adicionales. |
+| `seeds/01_expense_categories.sql` | Inserta 5 categorías iniciales de gastos. |
+| `seeds/02_reservation_types.sql` | Inserta 5 tipos iniciales de reservas. |
+| `install.sql` | Ejecuta la instalación completa mediante psql. |
 
 ## Modelo
 
-Los roles globales son `SUPER_ADMIN`, `ADMIN`, `SUPPORT` y `USER`.
-Los grupos utilizan `OWNER` y `MEMBER`; los viajes también incluyen
-`ORGANIZER`.
+### Esquemas y tablas
 
-Un viaje admite varios destinos. El itinerario se obtiene de las
-actividades, ordenadas por fecha y hora. Las reservas son simuladas
-y los importes utilizan `DECIMAL(12,2)` en COP.
+**auth** — autenticación y usuarios:
 
-`auth.auth_sessions` almacena las sesiones, el hash del token de
-renovación y sus fechas de vencimiento y revocación. No guarda
-el token original.
+- `users` — Usuarios globales de la plataforma.
+- `auth_sessions` — Sesiones de autenticación con refresh token almacenado mediante hash.
 
-`app.destination_photos` relaciona cada destino con sus fotografías,
-su orden y el usuario que las cargó. Guarda la referencia del archivo;
-la imagen se almacena fuera de PostgreSQL.
+**app** — dominio principal:
 
-Los campos `TIMESTAMP` se interpretan en UTC por convención del backend.
-Las fechas de las sesiones utilizan `TIMESTAMPTZ`. Las fechas y horas
-de actividades representan el horario local acordado para el viaje.
+- `travel_groups` — Grupos de viaje.
+- `group_members` — Miembros de grupos (`OWNER`, `MEMBER`).
+- `trips` — Viajes pertenecientes a un grupo.
+- `trip_members` — Participantes de viajes (`OWNER`, `ORGANIZER`, `MEMBER`).
+- `destinations` — Destinos propuestos para cada viaje.
+- `destination_photos` — Fotografías asociadas a destinos.
+- `activities` — Actividades del itinerario.
+- `expenses` — Gastos registrados.
+- `expense_splits` — Repartos de gastos entre participantes.
+- `expense_categories` — Catálogo de categorías de gastos.
+- `reservations` — Reservas simuladas asociadas a los viajes.
+- `reservation_types` — Catálogo de tipos de reserva.
+- `polls` — Votaciones o encuestas.
+- `poll_options` — Opciones disponibles en cada votación.
+- `votes` — Votos emitidos por los usuarios.
+- `notifications` — Notificaciones personales de los usuarios.
 
-### Votaciones
+**audit** — auditoría:
 
-Un participante puede seleccionar varias opciones de una encuesta.
-Cada selección se guarda como una fila en `app.votes`.
+- `audit_logs` — Registro de acciones relevantes realizadas en la plataforma.
 
-`UNIQUE (option_id, user_id)` impide votar dos veces por la misma opción.
-La encuesta se identifica mediante `poll_options.poll_id`; ese campo
-no se repite en `votes`.
+## Roles
 
-Los resultados no seleccionan destinos automáticamente.
+- **Globales:** `SUPER_ADMIN`, `ADMIN`, `SUPPORT`, `USER`.
+- **Grupo:** `OWNER`, `MEMBER`.
+- **Viaje:** `OWNER`, `ORGANIZER`, `MEMBER`.
+
+## Reglas de negocio principales
+
+1. Un viaje pertenece a un grupo mediante `trips.group_id`.
+2. Un viaje puede tener varios destinos propuestos.
+3. Un usuario registrado en `trip_members` debe pertenecer al grupo propietario del viaje.
+4. Las votaciones permiten seleccionar varias opciones por usuario. La tabla `votes` evita repetir el mismo voto sobre una misma opción mediante la restricción única `(option_id, user_id)`.
+5. Los gastos utilizan `DECIMAL(12,2)` y se manejan en COP. Los repartos asociados a un gasto deben corresponder con el total registrado.
+6. Los eventos del sistema que representan un instante exacto utilizan `TIMESTAMPTZ`.
+7. Las fechas funcionales del viaje utilizan `DATE`.
+8. La hora de inicio de una actividad utiliza `TIME` porque representa una hora local acordada.
+9. El backend normaliza los instantes del sistema a UTC y el frontend los presenta utilizando la zona horaria del navegador.
+
+## Tipos temporales
+
+### `TIMESTAMPTZ`
+
+Se utiliza para eventos que representan un instante exacto:
+
+- `auth.users.created_at`
+- `auth.auth_sessions.created_at`
+- `auth.auth_sessions.expires_at`
+- `auth.auth_sessions.revoked_at`
+- `app.travel_groups.created_at`
+- `app.group_members.joined_at`
+- `app.trips.created_at`
+- `app.destination_photos.created_at`
+- `app.polls.closes_at`
+- `app.votes.voted_at`
+- `app.notifications.created_at`
+- `audit.audit_logs.created_at`
+
+### `DATE`
+
+Se utiliza para fechas funcionales del viaje:
+
+- `app.trips.start_date`
+- `app.trips.end_date`
+- `app.activities.activity_date`
+- `app.expenses.expense_date`
+- `app.reservations.reservation_date`
+
+### `TIME`
+
+Se utiliza para la hora local de una actividad:
+
+- `app.activities.start_time`
+
+## Creación de las bases
+
+Se recomienda utilizar un usuario de PostgreSQL dedicado para KIVA en lugar de conectar la aplicación con el superusuario `postgres`.
+
+Desde una sesión administrativa de PostgreSQL:
+
+```sql
+CREATE ROLE kiva_user WITH LOGIN PASSWORD 'TU_PASSWORD_SEGURA';
+CREATE DATABASE kivadb OWNER kiva_user;
+CREATE DATABASE kivadb_test OWNER kiva_user;
+```
+
+Si el rol `kiva_user` ya existe, crea únicamente las bases que falten.
 
 ## Instalación
 
-La base debe existir y no contener las tablas de KIVA. Utiliza una
-cuenta con permisos para crear los esquemas y las tablas.
+La base debe existir previamente y no contener las tablas de KIVA. El usuario utilizado debe tener permisos para crear esquemas, tablas, restricciones e índices dentro de esa base.
 
-En Query Tool de pgAdmin, ejecuta los archivos completos en este orden:
+### Método 1: psql (recomendado)
 
-1. `scripts/00_create_schemas.sql`
-2. `scripts/01_create_tables.sql`
-3. `scripts/02_indexes.sql`
-4. `seeds/01_expense_categories.sql`
-5. `seeds/02_reservation_types.sql`
-
-Como alternativa, desde la raíz del proyecto y con psql disponible:
+Desde la raíz del proyecto:
 
 ```powershell
-psql -h localhost -p 5432 -U postgres -d kiva -v ON_ERROR_STOP=1 -f database/install.sql
+psql -h localhost -p 5432 -U kiva_user -d kivadb -v ON_ERROR_STOP=1 -f database/install.sql
 ```
 
-Ajusta los datos de conexión. No ejecutes `install.sql` en Query Tool:
-contiene instrucciones propias de psql.
+El archivo `install.sql` ejecuta en orden:
 
-La ejecución se detiene ante un error. Cada archivo tiene su propia
-transacción; los anteriores que hayan terminado permanecen aplicados.
-Utiliza un solo método de instalación sobre la misma base.
+```text
+scripts/00_create_schemas.sql
+scripts/01_create_tables.sql
+scripts/02_indexes.sql
+seeds/01_expense_categories.sql
+seeds/02_reservation_types.sql
+```
 
-Para las pruebas del backend, instala la misma estructura en
-`kiva_test`. Conserva únicamente los catálogos iniciales antes de
-ejecutar pytest; no cargues allí los datos de `seed_demo.py`.
+### Método 2: Query Tool de pgAdmin
 
-La inicialización mediante Docker todavía no está configurada
-en el archivo Compose del proyecto.
+Ejecuta manualmente los archivos completos en este orden:
 
-## Validaciones y cambios
+```text
+1. scripts/00_create_schemas.sql
+2. scripts/01_create_tables.sql
+3. scripts/02_indexes.sql
+4. seeds/01_expense_categories.sql
+5. seeds/02_reservation_types.sql
+```
 
-PostgreSQL aplica claves primarias y foráneas, obligatoriedad,
-unicidad y las restricciones `CHECK` del SQL. El DBML omite los
-`CHECK` para simplificar el diagrama.
+No ejecutes `install.sql` desde Query Tool porque contiene metacomandos propios de psql como `\ir`.
 
-El backend valida permisos, pertenencia a grupos y viajes,
-propietarios, fechas, votaciones y repartos de gastos. Las operaciones
-relacionadas se ejecutan dentro de transacciones.
+Cada archivo administra su propia transacción. Los scripts que hayan terminado correctamente permanecen aplicados si ocurre un error en un archivo posterior.
 
-No se utilizan funciones almacenadas ni triggers. Las notificaciones
-y la auditoría se generan desde el backend.
+## Base de datos para pruebas
 
-Modificar los scripts de creación no actualiza una base existente.
-Los cambios posteriores se gestionarán con Alembic cuando se complete
-su configuración.
+Instala la misma estructura en `kivadb_test`:
+
+```powershell
+psql -h localhost -p 5432 -U kiva_user -d kivadb_test -v ON_ERROR_STOP=1 -f database/install.sql
+```
+
+La base de pruebas debe conservar únicamente la estructura y los catálogos iniciales antes de ejecutar pytest. No cargues en `kivadb_test` los datos de `seed_demo.py` salvo que una prueba específica los requiera y los gestione de forma aislada.
+
+## Migraciones con Alembic
+
+La configuración se encuentra en `backend/alembic/` y `backend/alembic.ini`. La tabla de control de versiones se ubica en `auth.alembic_version`.
+
+La estructura inicial del proyecto continúa definida por `database/install.sql`. En el estado actual todavía no existe una revisión baseline dentro de `backend/alembic/versions/`. Antes de utilizar Alembic para cambios incrementales debe establecerse y coordinarse esa línea base con la base ya instalada.
+
+Una vez definida la línea base, los cambios posteriores de estructura deben gestionarse mediante migraciones de Alembic en lugar de editar directamente una base ya desplegada.
+
+## Validaciones y restricciones
+
+PostgreSQL aplica directamente:
+
+- claves primarias y foráneas;
+- obligatoriedad mediante `NOT NULL`;
+- unicidad mediante `UNIQUE`;
+- restricciones `CHECK` para roles, estados, fechas, posiciones y montos;
+- acciones referenciales `CASCADE`, `RESTRICT` y `SET NULL` según la relación.
+
+El backend valida adicionalmente:
+
+- permisos por rol global y contextual;
+- pertenencia a grupos y viajes;
+- propietarios y transferencias;
+- coherencia entre fechas de viaje;
+- participantes válidos en gastos y repartos;
+- reglas de votación;
+- permisos sobre destinos, fotografías, actividades y reservas.
+
+No se utilizan funciones almacenadas ni triggers para la lógica de negocio. Las notificaciones y los registros de auditoría se generan desde el backend.
 
 ## Comprobación
 
+Para comprobar las tablas:
+
 ```sql
-SELECT table_schema, table_name
+SELECT
+    table_schema,
+    table_name
 FROM information_schema.tables
 WHERE table_schema IN ('auth', 'app', 'audit')
   AND table_type = 'BASE TABLE'
 ORDER BY table_schema, table_name;
+```
 
+Para comprobar los catálogos:
+
+```sql
 SELECT COUNT(*) AS expense_categories
 FROM app.expense_categories;
 
@@ -118,5 +218,41 @@ SELECT COUNT(*) AS reservation_types
 FROM app.reservation_types;
 ```
 
-Se esperan 19 tablas, cinco categorías de gastos y cinco tipos
-de reservas.
+Se esperan 19 tablas, 5 categorías de gastos y 5 tipos de reservas.
+
+Para comprobar los tipos temporales:
+
+```sql
+SELECT
+    table_schema,
+    table_name,
+    column_name,
+    data_type
+FROM information_schema.columns
+WHERE table_schema IN ('auth', 'app', 'audit')
+  AND column_name IN (
+      'created_at',
+      'expires_at',
+      'revoked_at',
+      'joined_at',
+      'closes_at',
+      'voted_at',
+      'start_date',
+      'end_date',
+      'activity_date',
+      'start_time',
+      'expense_date',
+      'reservation_date'
+  )
+ORDER BY table_schema, table_name, ordinal_position;
+```
+
+Los eventos del sistema deben aparecer como `timestamp with time zone`, las fechas funcionales como `date` y `app.activities.start_time` como `time without time zone`.
+
+## Diagramas
+
+- `schema/kivadb.dbml` — Modelo DBML importable en dbdiagram.io.
+- `docs/database/KIVA.pdf` — Diagrama entidad-relación en PDF.
+- `docs/database/KIVA.png` — Diagrama entidad-relación en PNG.
+
+Cuando se modifique el DBML, los archivos PDF y PNG deben regenerarse para que la documentación gráfica permanezca sincronizada.

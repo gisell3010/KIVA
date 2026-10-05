@@ -78,3 +78,39 @@ def test_mark_read_and_delete(db, scenario):
     assert db.scalar(
         select(func.count()).select_from(Notification)
     ) == 0
+
+def test_notify_trip_members_excludes_actor(db, scenario, pagination):
+    service.notify_trip_members(
+        db,
+        trip_id=scenario.trip.id,
+        title="Nueva votación",
+        message="Hay una nueva votación.",
+        exclude_user_id=scenario.owner.id,
+    )
+    db.commit()
+
+    owner = service.list_notifications(
+        db,
+        user_id=scenario.owner.id,
+        pagination=pagination,
+    )
+    manager = service.list_notifications(
+        db,
+        user_id=scenario.manager.id,
+        pagination=pagination,
+    )
+    member = service.list_notifications(
+        db,
+        user_id=scenario.member.id,
+        pagination=pagination,
+    )
+    outsider = service.list_notifications(
+        db,
+        user_id=scenario.outsider.id,
+        pagination=pagination,
+    )
+
+    assert owner.total == 0
+    assert manager.total == 1
+    assert member.total == 1
+    assert outsider.total == 0

@@ -1,16 +1,10 @@
 from sqlalchemy import func, select
-
 from app.models import TripMember
 from app.schemas.activity import ActivityCreate
 from app.schemas.common import OwnershipTransfer
-from app.schemas.trip import (
-    TripCreate,
-    TripMemberAdd,
-    TripUpdate,
-)
+from app.schemas.trip import (TripCreate, TripMemberAdd, TripUpdate)
 from app.services import activity_service, poll_service
 from app.services import trip_service as service
-
 
 def test_create_trip_with_owner(db, scenario):
     trip = service.create_trip(
@@ -31,7 +25,6 @@ def test_create_trip_with_owner(db, scenario):
     assert member.user_id == scenario.member.id
     assert member.role == "OWNER"
 
-
 def test_trip_member_must_belong_to_group(
     db,
     scenario,
@@ -47,6 +40,18 @@ def test_trip_member_must_belong_to_group(
             ),
         )
 
+def test_organizer_cannot_edit_general_trip_data(
+    db,
+    scenario,
+    expect_error,
+):
+    with expect_error(403):
+        service.update_trip(
+            db,
+            actor_id=scenario.manager.id,
+            trip_id=scenario.trip.id,
+            data=TripUpdate(name="Cambio no permitido"),
+        )
 
 def test_period_update_validates_existing_activities(
     db,
@@ -81,7 +86,6 @@ def test_period_update_validates_existing_activities(
             data=TripUpdate(start_date=None),
         )
 
-
 def test_transfer_and_related_member_protection(
     db,
     scenario,
@@ -113,7 +117,6 @@ def test_transfer_and_related_member_protection(
             TripMember.role == "OWNER",
         )
     ) == 1
-
 
 def test_finishing_trip_closes_polls(db, scenario, poll):
     for status in ("CONFIRMED", "COMPLETED"):

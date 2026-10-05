@@ -25,13 +25,19 @@ export class UsersApiService {
   }
 
   changePassword(data: M.PasswordChangeRequest) {
-    return this.http.put<void>(`${this.url}/me/password`, data).pipe(
+    return this.http.put<void>(
+      `${this.url}/me/password`,
+      data,
+    ).pipe(
       tap(() => this.auth.clearSession()),
     );
   }
 
   changeEmail(data: M.EmailChangeRequest) {
-    return this.http.put<M.UserRead>(`${this.url}/me/email`, data).pipe(
+    return this.http.put<M.UserRead>(
+      `${this.url}/me/email`,
+      data,
+    ).pipe(
       tap(() => this.auth.clearSession()),
     );
   }
@@ -40,7 +46,10 @@ export class UsersApiService {
     return this.http.get<M.Page<M.UserPublic>>(
       `${this.url}/search`,
       {
-        params: apiParams({ ...pagination, username }),
+        params: apiParams({
+          ...pagination,
+          username,
+        }),
       },
     );
   }
@@ -76,67 +85,64 @@ export class UsersApiService {
 
   listSessions() {
     return this.http.get<M.AuthSessionRead[]>(
-      `${this.url}/../auth/sessions`,
+      `${environment.apiUrl}/auth/sessions`,
     );
   }
 
   revokeSession(id: number) {
     return this.http.delete<void>(
-      `${this.url}/../auth/sessions/${id}`,
+      `${environment.apiUrl}/auth/sessions/${id}`,
     );
   }
 
   logoutAll() {
     return this.http.post<void>(
-      `${this.url}/../auth/logout-all`,
+      `${environment.apiUrl}/auth/logout-all`,
       {},
     ).pipe(
       tap(() => this.auth.clearSession()),
     );
   }
 
-  deleteAccount() {
-    return this.http.delete<void>(
-      `${this.url}/me`,
-    ).pipe(
-      tap(() => this.auth.clearSession()),
-    );
-  }
-
-  listNotifications(pagination: M.Pagination, isRead?: boolean) {
+  listNotifications(
+    pagination: M.Pagination = {},
+    isRead?: boolean,
+  ) {
     let params = apiParams(pagination);
+
     if (isRead !== undefined) {
       params = params.set('is_read', String(isRead));
     }
+
     return this.http.get<M.Page<M.NotificationRead>>(
-      `${this.url}/../notifications`,
+      `${environment.apiUrl}/notifications`,
       { params },
     );
   }
 
   unreadCount() {
     return this.http.get<M.UnreadCount>(
-      `${this.url}/../notifications/unread-count`,
+      `${environment.apiUrl}/notifications/unread-count`,
     );
   }
 
   markAsRead(id: number) {
     return this.http.patch<M.NotificationRead>(
-      `${this.url}/../notifications/${id}`,
+      `${environment.apiUrl}/notifications/${id}`,
       { is_read: true },
     );
   }
 
   markAllAsRead() {
     return this.http.post<void>(
-      `${this.url}/../notifications/read-all`,
+      `${environment.apiUrl}/notifications/read-all`,
       {},
     );
   }
 
   deleteNotification(id: number) {
     return this.http.delete<void>(
-      `${this.url}/../notifications/${id}`,
+      `${environment.apiUrl}/notifications/${id}`,
     );
   }
 

@@ -120,6 +120,10 @@ def list_trips(
         Query(min_length=1, max_length=150),
     ] = None,
     status: TripStatus | None = None,
+    group_id: Annotated[
+        int | None,
+        Query(gt=0, le=2_147_483_647),
+    ] = None,
 ):
     return admin_service.list_trips(
         db,
@@ -127,4 +131,5 @@ def list_trips(
         pagination=pagination,
         q=q,
         status=status,
+        group_id=group_id,
     )
