@@ -5,7 +5,7 @@ import { UsersApiService } from '../../../data-access/api/users-api.service';
 import { NotificationRead, UnreadCount } from '../../../shared/models/domain.models';
 import { formatRelativeTime } from '../../../shared/utils/date.utils';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { timer } from 'rxjs';
+import { NotificationStateService } from '../../../data-access/notification-state.service';
 
 @Component({
   selector: 'app-notification-dropdown',
@@ -46,7 +46,7 @@ import { timer } from 'rxjs';
       @if (isOpen()) {
         <div
           class="dropdown-panel"
-          role="menu"
+          role="region" aria-label="Notificaciones recientes"
           (click)="$event.stopPropagation()"
         >
           <div class="dropdown-header">
@@ -67,7 +67,9 @@ import { timer } from 'rxjs';
             class="dropdown-list"
             role="list"
           >
-            @if (recentNotifications().length === 0) {
+            @if (loading()) { <p class="empty-state" role="status">Cargando notificaciones…</p> }
+            @else if (error()) { <div class="empty-state" role="alert"><p>{{ error() }}</p><button class="btn btn-outline" (click)="loadNotifications()">Reintentar</button></div> }
+            @else if (recentNotifications().length === 0) {
               <div
                 class="empty-state"
                 role="listitem"
@@ -122,6 +124,7 @@ import { timer } from 'rxjs';
                       {{ notification.message }}
                     </div>
 
+                    @if (notification.action_path) { <a [routerLink]="notification.action_path.split('?')[0]" [queryParams]="actionParams(notification.action_path)" class="notification-open" (click)="openNotification(notification)">Abrir detalle</a> }
                     <div class="notification-time">
                       {{ formatRelativeTime(notification.created_at) }}
                     </div>
@@ -252,7 +255,6 @@ import { timer } from 'rxjs';
       gap: 10px;
       padding: 10px 12px;
       border-radius: 10px;
-      cursor: pointer;
       transition: background 0.15s ease;
     }
 
@@ -294,6 +296,8 @@ import { timer } from 'rxjs';
       font-size: 0.75rem;
       line-height: 1.4;
     }
+
+    .notification-open { display:inline-block; margin:4px 0 8px; color:var(--accent-blue); font-size:.78rem; text-decoration:underline; }
 
     .notification-time {
       color: var(--text-muted);
@@ -358,17 +362,21 @@ export class NotificationDropdownComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly isOpen = signal(false);
-  readonly unreadCount = signal<UnreadCount>({ total: 0 });
+  readonly state = inject(NotificationStateService);
+  readonly unreadCount = this.state.count;
+  readonly loading = signal(false);
+  readonly error = signal('');
   readonly recentNotifications = signal<NotificationRead[]>([]);
 
   readonly formatRelativeTime = formatRelativeTime;
 
-  constructor() {
-    // Mantiene actualizado el contador sin WebSockets ni recargas manuales.
-    // El polling es deliberadamente liviano para el alcance académico de KIVA.
-    timer(0, 60_000)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.loadUnreadCount());
+  actionParams(path: string): Record<string, string> {
+    const params: Record<string, string> = {}; new URLSearchParams(path.split('?')[1] ?? '').forEach((value, key) => params[key] = value); return params;
+  }
+
+  openNotification(notification: NotificationRead): void {
+    if (!notification.is_read) this.markAsRead(notification.id);
+    this.close();
   }
 
   toggle(): void {
@@ -398,7 +406,7 @@ export class NotificationDropdownComponent {
         );
 
         this.loadUnreadCount();
-      }
+      }, error: () => this.error.set('No pudimos actualizar la notificación. Intenta de nuevo.')
     });
   }
 
@@ -412,10 +420,8 @@ export class NotificationDropdownComponent {
           }))
         );
 
-        this.unreadCount.set({
-          total: 0
-        });
-      }
+        this.state.refresh();
+      }, error: () => this.error.set('No pudimos marcar las notificaciones. Intenta de nuevo.')
     });
   }
 
@@ -434,7 +440,8 @@ export class NotificationDropdownComponent {
     this.close();
   }
 
-  private loadNotifications(): void {
+  loadNotifications(): void {
+    this.loading.set(true); this.error.set('');
     this.loadUnreadCount();
 
     this.usersApi.listNotifications({
@@ -442,26 +449,14 @@ export class NotificationDropdownComponent {
       page_size: 10
     }).subscribe({
       next: page => {
-        this.recentNotifications.set(page.items);
+        this.recentNotifications.set(page.items); this.loading.set(false);
       },
 
       error: () => {
-        this.recentNotifications.set([]);
+        this.loading.set(false); this.error.set('No pudimos cargar las notificaciones.');
       }
     });
   }
 
-  private loadUnreadCount(): void {
-    this.usersApi.unreadCount().subscribe({
-      next: count => {
-        this.unreadCount.set(count);
-      },
-
-      error: () => {
-        this.unreadCount.set({
-          total: 0
-        });
-      }
-    });
-  }
+  private loadUnreadCount(): void { this.state.refresh(); }
 }

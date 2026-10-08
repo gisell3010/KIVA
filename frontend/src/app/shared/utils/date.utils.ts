@@ -1,5 +1,7 @@
 export function toLocalDate(isoString: string): Date {
-  const date = new Date(isoString);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(isoString)
+    ? new Date(isoString + 'T00:00:00')
+    : new Date(isoString);
   if (isNaN(date.getTime())) {
     throw new Error('Fecha inválida');
   }

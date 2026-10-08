@@ -1,3 +1,4 @@
+from app.services.notification_service import create_notification
 from sqlalchemy import func, or_, select
 
 from app.core.security import hash_password, verify_password
@@ -208,6 +209,7 @@ def admin_update_user(db, *, actor_id, user_id, data):
                 403,
             )
 
+    previous_role, previous_status = user.role, user.status
     apply_patch(user, data)
 
     if not any(
@@ -220,6 +222,13 @@ def admin_update_user(db, *, actor_id, user_id, data):
         )
 
     invalidate_user_sessions(db, user_id=user.id)
+    if user.role != previous_role:
+        role_labels = {"USER": "Usuario", "SUPPORT": "Soporte", "ADMIN": "Administrador", "SUPER_ADMIN": "Superadministrador"}
+        create_notification(db, user_id=user.id, title="Tu función en KIVA cambió",
+            message=f"Tu cuenta ahora tiene la función de {role_labels[user.role]}. Vuelve a iniciar sesión para ver tus opciones.", action_path="/perfil")
+    if user.status != previous_status and user.status == "ACTIVE":
+        create_notification(db, user_id=user.id, title="Tu cuenta está activa",
+            message="Ya puedes volver a utilizar KIVA. Si necesitas ayuda, consulta tus reportes.", action_path="/reportes")
     audit(db, actor_id, "USER_ADMIN_UPDATE", user)
 
     return saved(db, user, UserRead)

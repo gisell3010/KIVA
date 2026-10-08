@@ -1,19 +1,4 @@
 import { Routes } from '@angular/router';
-import { DashboardComponent } from './pages/dashboard/dashboard.component';
-import { GruposComponent } from './pages/grupos/grupos.component';
-import { ParticipantesComponent } from './pages/participantes/participantes.component';
-import { DestinosComponent } from './pages/destinos/destinos.component';
-import { ItinerarioComponent } from './pages/itinerario/itinerario.component';
-import { GastosComponent } from './pages/gastos/gastos.component';
-import { VotacionesComponent } from './pages/votaciones/votaciones.component';
-import { ReservasComponent } from './pages/reservas/reservas.component';
-import { CalendarioComponent } from './pages/calendario/calendario.component';
-import { SettingsComponent } from './features/settings/settings.component';
-import { ProfileComponent } from './features/profile/profile.component';
-import { AdminDashboardComponent } from './features/admin/admin-dashboard/admin-dashboard.component';
-import { AdminUsersComponent } from './features/admin/admin-users/admin-users.component';
-import { AdminOverviewComponent } from './features/admin/admin-overview/admin-overview.component';
-import { NotificationsPageComponent } from './features/notifications/notifications-page/notifications-page.component';
 import {
   authGuard,
   guestGuard
@@ -49,15 +34,24 @@ export const routes: Routes = [
     canActivate: [guestGuard]
   },
 
+
+  {
+    path: 'ayuda',
+    loadComponent: () =>
+      import('./features/auth/help/help.component')
+        .then(m => m.HelpComponent),
+    canActivate: [guestGuard]
+  },
+
   {
     path: 'dashboard',
-    component: DashboardComponent,
+    loadComponent: () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'grupos',
-    component: GruposComponent,
+    loadComponent: () => import('./pages/grupos/grupos.component').then(m => m.GruposComponent),
     canActivate: [authGuard]
   },
 
@@ -79,67 +73,76 @@ export const routes: Routes = [
 
   {
     path: 'participantes',
-    component: ParticipantesComponent,
+    loadComponent: () => import('./pages/participantes/participantes.component').then(m => m.ParticipantesComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'destinos',
-    component: DestinosComponent,
+    loadComponent: () => import('./pages/destinos/destinos.component').then(m => m.DestinosComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'itinerario',
-    component: ItinerarioComponent,
+    loadComponent: () => import('./pages/itinerario/itinerario.component').then(m => m.ItinerarioComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'gastos',
-    component: GastosComponent,
+    loadComponent: () => import('./pages/gastos/gastos.component').then(m => m.GastosComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'votaciones',
-    component: VotacionesComponent,
+    loadComponent: () => import('./pages/votaciones/votaciones.component').then(m => m.VotacionesComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'reservas',
-    component: ReservasComponent,
+    loadComponent: () => import('./pages/reservas/reservas.component').then(m => m.ReservasComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'calendario',
-    component: CalendarioComponent,
+    loadComponent: () => import('./pages/calendario/calendario.component').then(m => m.CalendarioComponent),
+    canActivate: [authGuard]
+  },
+
+
+  {
+    path: 'reportes',
+    loadComponent: () =>
+      import('./pages/reportes/reportes.component')
+        .then(m => m.ReportesComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'notificaciones',
-    component: NotificationsPageComponent,
+    loadComponent: () => import('./features/notifications/notifications-page/notifications-page.component').then(m => m.NotificationsPageComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'configuracion',
-    component: SettingsComponent,
+    loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'perfil',
-    component: ProfileComponent,
+    loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent),
     canActivate: [authGuard]
   },
 
   {
     path: 'admin',
-    component: AdminDashboardComponent,
+    loadComponent: () => import('./features/admin/admin-dashboard/admin-dashboard.component').then(m => m.AdminDashboardComponent),
     canActivate: [
       authGuard,
       adminGuard
@@ -148,7 +151,7 @@ export const routes: Routes = [
 
   {
     path: 'admin/usuarios',
-    component: AdminUsersComponent,
+    loadComponent: () => import('./features/admin/admin-users/admin-users.component').then(m => m.AdminUsersComponent),
     canActivate: [
       authGuard,
       adminGuard
@@ -157,7 +160,7 @@ export const routes: Routes = [
 
   {
     path: 'admin/vision-general',
-    component: AdminOverviewComponent,
+    loadComponent: () => import('./features/admin/admin-overview/admin-overview.component').then(m => m.AdminOverviewComponent),
     canActivate: [
       authGuard,
       adminGuard
@@ -198,6 +201,15 @@ export const routes: Routes = [
   },
 
   { path: 'soporte/diagnostico', loadComponent: () => import('./features/support/support-diagnostic/support-diagnostic.component').then(m => m.SupportDiagnosticComponent), canActivate: [authGuard, supportGuard] },
+
+
+  {
+    path: 'soporte/reportes',
+    loadComponent: () =>
+      import('./features/support/support-reports/support-reports.component')
+        .then(m => m.SupportReportsComponent),
+    canActivate: [authGuard, supportGuard]
+  },
 
   {
     path: 'soporte/usuarios',

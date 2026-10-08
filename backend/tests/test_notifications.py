@@ -114,3 +114,10 @@ def test_notify_trip_members_excludes_actor(db, scenario, pagination):
     assert manager.total == 1
     assert member.total == 1
     assert outsider.total == 0
+
+
+def test_long_event_text_does_not_abort_business_transaction(db, scenario):
+    from app.services.notification_service import create_notification
+    item = create_notification(db, user_id=scenario.member.id, title="Nueva votación", message="A" * 400, action_path="/votaciones")
+    db.flush()
+    assert len(item.message) == 300 and item.message.endswith("...")

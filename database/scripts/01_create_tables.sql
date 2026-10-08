@@ -397,12 +397,91 @@ CREATE TABLE app.notifications (
     user_id INTEGER NOT NULL,
     title VARCHAR(150) NOT NULL,
     message VARCHAR(300) NOT NULL,
+    action_path VARCHAR(200),
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_notifications_user
         FOREIGN KEY (user_id)
         REFERENCES auth.users(id)
         ON DELETE CASCADE
+);
+
+-- ----------------------------------------------------------------
+-- SUPPORT REPORTS
+-- Reportes enviados por usuarios y gestionados por soporte.
+-- ----------------------------------------------------------------
+CREATE TABLE app.support_reports (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    reported_by_user_id INTEGER,
+    assigned_to_user_id INTEGER,
+    trip_id INTEGER,
+    contact_email VARCHAR(150) NOT NULL,
+    category VARCHAR(30) NOT NULL,
+    subject VARCHAR(150) NOT NULL,
+    description VARCHAR(1000) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+    response VARCHAR(1000),
+    tracking_token_hash VARCHAR(64),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMPTZ,
+    CONSTRAINT chk_support_reports_category
+        CHECK (
+            category IN (
+                'ACCESS',
+                'ACCOUNT',
+                'TRIP',
+                'EXPENSE',
+                'VOTING',
+                'RESERVATION',
+                'TECHNICAL',
+                'OTHER'
+            )
+        ),
+    CONSTRAINT chk_support_reports_status
+        CHECK (
+            status IN (
+                'OPEN',
+                'IN_REVIEW',
+                'ESCALATED',
+                'RESOLVED',
+                'CLOSED'
+            )
+        ),
+    CONSTRAINT fk_support_reports_reported_by
+        FOREIGN KEY (reported_by_user_id)
+        REFERENCES auth.users(id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_support_reports_assigned_to
+        FOREIGN KEY (assigned_to_user_id)
+        REFERENCES auth.users(id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_support_reports_trip
+        FOREIGN KEY (trip_id)
+        REFERENCES app.trips(id)
+        ON DELETE SET NULL
+);
+
+-- ----------------------------------------------------------------
+-- SUPPORT MESSAGES
+-- Mensajes públicos y notas internas asociados a un reporte.
+-- ----------------------------------------------------------------
+CREATE TABLE app.support_messages (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    report_id INTEGER NOT NULL,
+    author_id INTEGER,
+    author_label VARCHAR(150) NOT NULL,
+    body VARCHAR(1000) NOT NULL,
+    is_internal BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_support_messages_report
+        FOREIGN KEY (report_id)
+        REFERENCES app.support_reports(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_support_messages_author
+        FOREIGN KEY (author_id)
+        REFERENCES auth.users(id)
+        ON DELETE SET NULL
 );
 
 -- ================================================================

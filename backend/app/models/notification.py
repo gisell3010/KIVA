@@ -40,6 +40,8 @@ class Notification(Base):
     title: Mapped[str] = mapped_column(String(150))
     message: Mapped[str] = mapped_column(String(300))
 
+    action_path: Mapped[str | None] = mapped_column(String(200))
+
     is_read: Mapped[bool] = mapped_column(
         Boolean,
         server_default=text("false"),

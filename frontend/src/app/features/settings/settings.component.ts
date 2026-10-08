@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect } from '@angular/core';
+import { Component, inject, signal, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -672,9 +672,12 @@ export class SettingsComponent {
   constructor() {
     effect(() => {
       const email = this.currentUser()?.email ?? '';
-      if (!this.emailForm().current_password) {
-        this.emailForm.update(value => ({ ...value, email }));
-      }
+      untracked(() => {
+        const current = this.emailForm();
+        if (!current.current_password && current.email !== email) {
+          this.emailForm.set({ ...current, email });
+        }
+      });
     });
 
     effect(() => {

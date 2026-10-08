@@ -1,4 +1,7 @@
 :host {
+  --register-background-image: url('/assets/images/mi-fondo.jpg');
+  --register-button: #7c3aed;
+  --register-button-hover: #6d28d9;
   display: block;
   min-height: 100vh;
 }
@@ -9,17 +12,23 @@
   justify-content: center;
   min-height: 100vh;
   padding: 32px 20px;
-  background: var(--bg-main);
+  background-color: var(--bg-main);
+  background-image:
+    linear-gradient(rgba(23, 20, 43, 0.48), rgba(23, 20, 43, 0.62)),
+    var(--register-background-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 
 .register-card {
   width: 100%;
   max-width: 720px;
   padding: 32px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid #9999d2;
   border-radius: 16px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-glow);
+  background: #111325;
+  box-shadow: 0 12px 40px rgba(12, 10, 35, 0.3);
 }
 
 .register-header {
@@ -185,7 +194,7 @@
   line-height: 1.4;
 }
 
-.submit-button {
+.register-page .submit-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -193,6 +202,18 @@
   width: 100%;
   min-height: 46px;
   margin-top: 26px;
+  background: var(--register-button);
+  color: #ffffff;
+}
+
+.register-page .submit-button:hover:not(:disabled) {
+  background: var(--register-button-hover);
+  opacity: 1;
+}
+
+.register-page .submit-button:focus-visible {
+  outline: 3px solid var(--register-button);
+  outline-offset: 3px;
 }
 
 .submit-button:disabled {

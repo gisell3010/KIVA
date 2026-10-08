@@ -5,12 +5,6 @@ from pydantic import Field
 from app.schemas.common import Schema
 
 
-class SupportDashboardRead(Schema):
-    users_count: int = Field(ge=0)
-    active_users_count: int = Field(ge=0)
-    suspended_users_count: int = Field(ge=0)
-
-
 class SystemConfigRead(Schema):
     app_name: str
     environment: Literal["development", "test", "production"]

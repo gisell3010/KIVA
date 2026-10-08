@@ -1,8 +1,8 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AdminApiService } from '../../../data-access/api/admin-api.service';
+import { SupportApiService } from '../../../data-access/api/support-api.service';
 import { GlobalRole, UserRead, UserStatus } from '../../../shared/models/domain.models';
 import { formatDate } from '../../../shared/utils/date.utils';
 
@@ -23,7 +23,7 @@ import { formatDate } from '../../../shared/utils/date.utils';
           </h1>
 
           <p class="page-subtitle">
-            Consulta cuentas, diagnostica incidencias y protege el acceso.
+            Consulta cuentas e información básica para diagnosticar incidencias.
           </p>
         </div>
 
@@ -532,8 +532,8 @@ import { formatDate } from '../../../shared/utils/date.utils';
 export class SupportUsersComponent
   implements OnInit
 {
-  private readonly adminApi =
-    inject(AdminApiService);
+  private readonly supportApi =
+    inject(SupportApiService);
 
 
   readonly users =
@@ -591,8 +591,8 @@ export class SupportUsersComponent
     this.loading.set(true);
     this.error.set(null);
 
-    this.adminApi
-      .supportUsers({
+    this.supportApi
+      .users({
         page: this.currentPage(),
         page_size: this.pageSize,
 
@@ -674,8 +674,8 @@ export class SupportUsersComponent
   openUser(
     user: UserRead,
   ): void {
-    this.adminApi
-      .supportUser(user.id)
+    this.supportApi
+      .user(user.id)
       .subscribe({
 
         next: data => {

@@ -52,6 +52,9 @@ def check_db_connection() -> None:
     """Comprueba la conexión sin crear tablas ni modificar datos."""
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
+        connection.execute(text("SELECT tracking_token_hash FROM app.support_reports LIMIT 0"))
+        connection.execute(text("SELECT id FROM app.support_messages LIMIT 0"))
+        connection.execute(text("SELECT action_path FROM app.notifications LIMIT 0"))
 
 def dispose_engine() -> None:
     """Libera las conexiones del pool durante el cierre de la aplicación."""

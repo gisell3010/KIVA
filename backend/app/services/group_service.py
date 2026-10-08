@@ -213,6 +213,7 @@ def add_member(db, *, actor_id, group_id, data):
 
     create_notification(
         db,
+        action_path="/grupos",
         user_id=data.user_id,
         title="Nuevo grupo",
         message=f"Te agregaron al grupo {group.name}.",
@@ -266,6 +267,7 @@ def remove_member(db, *, actor_id, group_id, user_id):
     if actor_id != user_id:
         create_notification(
             db,
+            action_path="/grupos",
             user_id=user_id,
             title="Cambio en un grupo",
             message=f"Ya no formas parte del grupo {group.name}.",
@@ -301,6 +303,7 @@ def transfer_ownership(db, *, actor_id, group_id, data):
 
         create_notification(
             db,
+            action_path="/grupos",
             user_id=data.new_owner_user_id,
             title="Ahora eres responsable del grupo",
             message=f"Te transfirieron la responsabilidad de {group.name}.",

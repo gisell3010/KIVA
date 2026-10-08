@@ -16,6 +16,7 @@ from app.api.endpoints import (
     reservations,
     super_admin,
     support,
+    support_reports,
     trips,
     users,
 )
@@ -39,6 +40,7 @@ for module in (
     calendar,
     admin,
     support,
+    support_reports,
     super_admin,
 ):
     router.include_router(module.router)

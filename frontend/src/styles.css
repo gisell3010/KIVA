@@ -1,5 +1,5 @@
 :root {
-  --radius: 14px;
+  --radius: 10px;
   --shadow-glow: 0 0 0 1px var(--border-soft), 0 8px 24px rgba(0,0,0,0.15);
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
@@ -43,9 +43,9 @@
   --border-focus: #3b82f6;
   --text-primary: #eef1f8;
   --text-secondary: #9aa4c2;
-  --text-muted: #6b7599;
+  --text-muted: #9aa7c6;
   --text-inverse: #0a0e1a;
-  --shadow-glow: 0 0 0 1px var(--border-soft), 0 8px 24px rgba(0,0,0,0.35);
+  --shadow-glow: 0 2px 8px rgba(0,0,0,0.16);
 }
 
 [data-theme="light"] {
@@ -60,9 +60,9 @@
   --border-focus: #3b82f6;
   --text-primary: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;
   --text-inverse: #ffffff;
-  --shadow-glow: 0 0 0 1px var(--border-soft), 0 8px 24px rgba(15,23,42,0.08);
+  --shadow-glow: 0 2px 5px rgba(15,23,42,0.035);
 }
 
 * {
@@ -76,10 +76,7 @@ html, body {
 body {
   margin: 0;
   font-family: var(--font-family);
-  background:
-    radial-gradient(circle at 15% 0%, rgba(59,130,246,0.10), transparent 40%),
-    radial-gradient(circle at 90% 10%, rgba(168,85,247,0.10), transparent 40%),
-    var(--bg-app);
+  background: var(--bg-app);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   transition: background-color var(--transition-normal), color var(--transition-normal);
@@ -552,3 +549,8 @@ button { font-family: inherit; }
 .audit-role { display: block; color: var(--text-muted); font-size: .75rem; margin-top: 4px; }
 input[type="checkbox"], input[type="radio"] { width: auto; }
 @media (max-width: 700px) { .pagination { flex-wrap: wrap; } .modal-actions { flex-wrap: wrap; } .filters-bar > * { min-width: 0 !important; } }
+
+.error-banner,.success-banner { margin-bottom:16px; }
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
+
+.success-banner { padding:12px 16px; border:1px solid var(--accent-green); border-radius:8px; background:var(--bg-panel); color:var(--text-primary); }

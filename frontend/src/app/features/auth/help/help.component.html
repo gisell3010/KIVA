@@ -1,0 +1,61 @@
+<div class="help-page">
+  <main class="help-card">
+    <a routerLink="/login" class="back-link">← Volver al inicio de sesión</a>
+    <h1>Contactar con soporte</h1>
+    <p class="subtitle">Si no puedes acceder a tu cuenta, envía una solicitud para que el equipo de soporte pueda revisarla.</p>
+
+    @if (sent()) {
+      <div class="success-box" role="status">
+        <h2>Solicitud enviada</h2>
+        <p>Reporte #{{ reportId }}. Guarda el número y esta clave: los necesitarás para consultar las respuestas en esta página.</p>
+        <label for="receipt">Clave privada de seguimiento</label><input id="receipt" readonly [value]="receipt" aria-describedby="receiptHelp" />
+        <p id="receiptHelp">Copia la clave antes de salir. No se envía por correo y permite acceder a tu conversación; no la compartas.</p>
+        <a routerLink="/login" class="btn btn-primary">Volver al inicio de sesión</a>
+      </div>
+    } @else {
+      @if (error()) { <div class="error-banner" role="alert">{{ error() }}</div> }
+      <form (ngSubmit)="submit()" #helpForm="ngForm">
+        <label for="helpEmail">Correo de contacto</label>
+        <input id="helpEmail" name="email" type="email" required email [(ngModel)]="email" />
+
+        <label for="helpCategory">Tipo de problema</label>
+        <select id="helpCategory" name="category" [(ngModel)]="category">
+          <option value="ACCESS">No puedo acceder</option>
+          <option value="ACCOUNT">Problema con mi cuenta</option>
+          <option value="TECHNICAL">Problema técnico</option>
+          <option value="OTHER">Otro</option>
+        </select>
+
+        <label for="helpSubject">Asunto</label>
+        <input id="helpSubject" name="subject" maxlength="150" required [(ngModel)]="subject" />
+
+        <label for="helpDescription">Descripción</label>
+        <textarea id="helpDescription" name="description" rows="6" maxlength="1000" required [(ngModel)]="description"></textarea>
+
+        <button class="btn btn-primary" type="submit" [disabled]="helpForm.invalid || loading()">
+          {{ loading() ? 'Enviando...' : 'Enviar solicitud' }}
+        </button>
+      </form>
+    }
+    <section class="tracking" aria-labelledby="tracking-title">
+      <h2 id="tracking-title">Consultar una solicitud</h2>
+      <p>Usa el número y la clave que recibiste al enviar el reporte.</p>
+      <form (ngSubmit)="track()">
+        <label for="trackingId">Número de reporte</label><input id="trackingId" name="trackingId" type="number" min="1" required [(ngModel)]="reportId" />
+        <label for="trackingKey">Clave de seguimiento</label><input id="trackingKey" name="trackingKey" type="password" autocomplete="off" maxlength="100" required [(ngModel)]="token" />
+        <button class="btn btn-outline" [disabled]="loading() || !reportId || !token.trim()">Consultar respuestas</button>
+      </form>
+      @if (error()) { <p class="error-banner" role="alert">{{ error() }}</p> }
+      @if (tracked(); as report) {
+        <h3>#{{ report.id }} · {{ report.subject }}</h3><p>{{ statusLabel(report.status) }}</p>
+        @for (item of messages(); track item.id) { <article class="tracked-message"><strong>{{ item.author_label }}</strong><span>{{ formatDateTime(item.created_at) }}</span><p>{{ item.body }}</p></article> }
+        @if (!messages().length) { <p>Aún no hay respuestas. Tu solicitud está registrada.</p> }
+        @if (messageTotal > 50) { <div><button class="btn btn-outline" [disabled]="messagePage <= 1" (click)="loadMessages(messagePage - 1)">Anteriores</button><button class="btn btn-outline" [disabled]="messagePage * 50 >= messageTotal" (click)="loadMessages(messagePage + 1)">Siguientes</button></div> }
+        @if (report.status !== 'CLOSED') {
+          <label for="publicReply">Añadir información{{ report.status === 'RESOLVED' ? ' y continuar la revisión' : '' }}</label><textarea id="publicReply" rows="4" maxlength="1000" [(ngModel)]="replyText"></textarea>
+          <button class="btn btn-primary" [disabled]="loading() || !replyText.trim()" (click)="reply()">Enviar respuesta</button>
+        }
+      }
+    </section>
+  </main>
+</div>

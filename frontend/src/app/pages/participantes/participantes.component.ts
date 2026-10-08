@@ -1,6 +1,7 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { allPages } from '../../core/http/all-pages';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -19,6 +20,7 @@ import { isTripManager, isTripOwner } from '../../shared/utils/permissions.utils
   styleUrl: './participantes.component.css',
 })
 export class ParticipantesComponent implements OnInit {
+  private readonly notificationDestroyRef = inject(DestroyRef);
   private readonly tripsApi = inject(TripsApiService);
   private readonly groupsApi = inject(GroupsApiService);
   private readonly auth = inject(AuthService);
@@ -43,6 +45,12 @@ export class ParticipantesComponent implements OnInit {
   );
 
   ngOnInit(): void {
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.notificationDestroyRef)).subscribe(params => {
+      const id = Number(params.get('trip'));
+      if (id && id !== this.selectedTripId() && this.trips().some(trip => trip.id === id)) {
+        this.selectedTripId.set(id); this.load(id);
+      }
+    });
     allPages(page => this.tripsApi.list({ page, page_size: 100 })).subscribe({
       next: (p) => {
         this.trips.set(p.items);

@@ -24,7 +24,7 @@ Docker + Uvicorn + FastAPI
 Render Postgres
 ```
 
-Las fotografías se validan y procesan en FastAPI y se almacenan en Cloudinary Free. PostgreSQL conserva una referencia interna a cada archivo; no se necesita Persistent Disk para el despliegue académico gratuito.
+Las fotografías se validan y procesan en FastAPI y se almacenan en Cloudinary. PostgreSQL conserva una referencia interna a cada archivo; las imágenes no dependen del disco local del Web Service. Los límites de uso dependen de los planes de cada proveedor.
 
 ## Archivos
 
@@ -52,11 +52,7 @@ frontend/nginx.conf
 
 ## Render
 
-Consulta:
-
-```text
-deploy/render/README.md
-```
+Consulta [Despliegue en Render](render/README.md).
 
 La configuración principal es:
 
@@ -105,7 +101,7 @@ deploy/nginx/ssl/fullchain.pem
 deploy/nginx/ssl/privkey.pem
 ```
 
-La composición alternativa no instala automáticamente la estructura de la base. Inicializa PostgreSQL antes de utilizar la aplicación.
+La composición alternativa instala la estructura automáticamente al inicializar un volumen PostgreSQL vacío. Un volumen existente no vuelve a ejecutar los scripts de instalación.
 
 Desde `deploy/docker/`:
 
@@ -113,12 +109,19 @@ Desde `deploy/docker/`:
 docker compose --env-file ../.env.production -f docker-compose.prod.yml up -d postgres
 ```
 
-Después instala el esquema desde la raíz del proyecto contra esa base y levanta el resto de servicios:
+Cuando PostgreSQL esté disponible, levanta el resto de servicios desde el mismo directorio:
 
 ```powershell
-cd deploy/docker
 docker compose --env-file ../.env.production -f docker-compose.prod.yml up -d --build
 ```
+
+Para actualizar una base existente, realizar primero un respaldo y ejecutar desde `deploy/docker/`:
+
+```powershell
+docker compose --env-file ../.env.production -f docker-compose.prod.yml exec backend alembic upgrade head
+```
+
+El primer `SUPER_ADMIN` puede crearse con `docker compose --env-file ../.env.production -f docker-compose.prod.yml exec backend python -m scripts.create_superadmin`.
 
 En esta arquitectura Nginx exterior termina HTTPS, envía `/api/` a FastAPI y el resto al contenedor que sirve el build de Angular.
 

@@ -1,56 +1,32 @@
-# Migraciones de Alembic para KIVA
+# Migraciones de KIVA
 
-Alembic está configurado para trabajar con los modelos SQLAlchemy de KIVA y con los esquemas `auth`, `app` y `audit`.
+Alembic mantiene el historial de cambios de estructura de las bases de datos de KIVA. La instalación inicial se define en `database/install.sql`; las migraciones se aplican sobre una base previamente instalada.
 
-## Estado actual
+## Organización
 
-La estructura inicial de la base se instala mediante:
+- `env.py`: conecta Alembic con SQLAlchemy, la configuración de entorno y los modelos del dominio.
+- `versions/`: revisiones ordenadas mediante `revision` y `down_revision`.
+- `versions/20261007_support_workflow.py`: revisión incremental para reportes, conversaciones y enlaces de notificaciones.
+- `versions/support_workflow.sql`: operaciones SQL utilizadas por esa revisión.
+- `script.py.mako`: plantilla para generar nuevas revisiones.
+- `../alembic.ini`: configuración general y de registros de Alembic.
 
-```text
-database/install.sql
-```
+El historial se almacena en `auth.alembic_version`.
 
-En el estado actual del proyecto, `alembic/versions/` no contiene todavía una revisión baseline. Por esta razón, no debe generarse una migración incremental hasta coordinar Alembic con el esquema inicial definitivo.
+## Ejecución
 
-La tabla de control de versiones se ubicará en:
-
-```text
-auth.alembic_version
-```
-
-## Después de establecer la línea base
-
-Desde `backend/`:
+Desde `backend/`, con la conexión a la base de destino configurada:
 
 ```powershell
-alembic revision --autogenerate -m "descripcion_cambio"
-alembic upgrade head
+python -m alembic upgrade head
+python -m alembic current
+python -m alembic history
 ```
 
-Otros comandos útiles:
+Una base vacía requiere ejecutar primero `database/install.sql`. Después, `upgrade head` registra la revisión sobre el esquema instalado. En bases existentes, la revisión conserva las respuestas anteriores como mensajes y admite la estructura ya creada sin duplicarlos.
 
-```powershell
-alembic current
-alembic history --verbose
-alembic downgrade -1
-```
+## Mantenimiento
 
-## Estructura
+Las revisiones desplegadas forman parte del historial y no deben modificarse. Cada cambio posterior requiere una nueva revisión. Las operaciones generadas mediante `--autogenerate` deben revisarse antes de aplicarlas.
 
-```text
-alembic/
-├── env.py
-├── script.py.mako
-├── README
-└── versions/
-```
-
-## Convenciones
-
-1. Mantener los modelos SQLAlchemy sincronizados con el esquema PostgreSQL.
-2. Revisar siempre el archivo generado por `--autogenerate` antes de aplicarlo.
-3. Cada revisión debe tener `upgrade()` y `downgrade()` coherentes.
-4. No crear manualmente identificadores de revisión.
-5. Mantener `include_schemas=True` y `version_table_schema="auth"`.
-6. No utilizar Alembic para ocultar inconsistencias de una base local desechable antes de consolidar el esquema inicial.
-7. Una vez desplegada una versión, los cambios estructurales posteriores deben realizarse mediante migraciones y no editando directamente la base existente.
+La revisión `20261007_support` no implementa un descenso destructivo. La reversión requiere un respaldo comprobado y una versión compatible del código.

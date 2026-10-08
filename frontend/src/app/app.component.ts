@@ -40,7 +40,7 @@ export class AppComponent {
   protected readonly links = [
     {
       path: '/dashboard',
-      label: 'Dashboard',
+      label: 'Inicio',
       icon:
         'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z'
     },
@@ -97,6 +97,12 @@ export class AppComponent {
       label: 'Calendario',
       icon:
         'M3 5h18v16H3z M3 10h18 M8 2v6 M16 2v6'
+    },
+    {
+      path: '/reportes',
+      label: 'Reportes',
+      icon:
+        'M4 4h16v14H7l-3 3z M8 9h8 M8 13h5'
     }
   ];
 
@@ -142,6 +148,16 @@ export class AppComponent {
     }
   ];
 
+  protected isStaffWorkspace(): boolean {
+    return /^\/(soporte|admin|super-admin)(\/|$|\?)/.test(this.router.url);
+  }
+
+  protected readonly supportLinks = [
+    { path: '/soporte', label: 'Panel de soporte' },
+    { path: '/soporte/reportes', label: 'Reportes de soporte' },
+    { path: '/soporte/usuarios', label: 'Consulta de usuarios' }
+  ];
+
   isSidebarCollapsed = false;
   showMobileMenu = false;
 
@@ -158,7 +174,8 @@ export class AppComponent {
     return (
       path === '/' ||
       path === '/login' ||
-      path === '/register'
+      path === '/register' ||
+      path === '/ayuda'
     );
   }
 

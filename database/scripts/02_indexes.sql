@@ -40,6 +40,16 @@ CREATE INDEX IF NOT EXISTS idx_reservations_type
     ON app.reservations (type_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_date
     ON app.notifications (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_support_reports_reporter
+    ON app.support_reports (reported_by_user_id);
+CREATE INDEX IF NOT EXISTS idx_support_reports_assignee
+    ON app.support_reports (assigned_to_user_id);
+CREATE INDEX IF NOT EXISTS idx_support_reports_trip
+    ON app.support_reports (trip_id);
+CREATE INDEX IF NOT EXISTS idx_support_reports_status_date
+    ON app.support_reports (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_support_messages_report
+    ON app.support_messages (report_id, id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_date
     ON audit.audit_logs (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity

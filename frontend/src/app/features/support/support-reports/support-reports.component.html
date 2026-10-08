@@ -1,0 +1,70 @@
+<div class="support-reports-page">
+  <div class="page-head">
+    <div><p class="eyebrow">Atención a usuarios</p><h1 class="page-title">Reportes de soporte</h1><p class="page-subtitle">Revisa cada caso, responde y registra cómo se resolvió.</p></div>
+    <a routerLink="/soporte" class="btn btn-outline">Volver al panel</a>
+  </div>
+  @if (error()) { <div class="error-banner" role="alert">{{ error() }} <button class="btn btn-sm btn-outline" (click)="load(page)">Actualizar lista</button></div> }
+  @if (message()) { <div class="success-banner" role="status">{{ message() }}</div> }
+  <form class="card filters" (ngSubmit)="load(1)">
+    <label>Buscar<input name="query" type="search" class="filter-input" maxlength="150" placeholder="Asunto o correo" [(ngModel)]="query" /></label>
+    <label>Estado<select name="status" class="filter-select" [(ngModel)]="statusFilter" (change)="load(1)"><option value="">Todos</option>@for (item of statuses; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
+    <label>Categoría<select name="category" class="filter-select" [(ngModel)]="categoryFilter" (change)="load(1)"><option value="">Todas</option>@for (item of categories; track item.value) { <option [value]="item.value">{{ item.label }}</option> }</select></label>
+    <label>Asignación<select name="assignment" class="filter-select" [(ngModel)]="assignment" (change)="load(1)"><option value="">Cualquiera</option><option value="mine">A mi cargo</option><option value="unassigned">Sin asignar</option></select></label>
+    <button class="btn btn-primary" type="submit" [disabled]="loading()">Buscar</button>
+  </form>
+  <section class="card queue" aria-label="Lista de reportes" [attr.aria-busy]="loading()">
+    @if (loading()) { <p class="empty-state">Cargando reportes…</p> }
+    @else if (!error() || reports().length) {
+      <div class="table-container"><table class="admin-table"><thead><tr><th>Reporte</th><th>Estado</th><th>A cargo de</th><th>Fecha</th><th><span class="sr-only">Acciones</span></th></tr></thead><tbody>
+      @for (report of reports(); track report.id) {
+        <tr [class.selected-row]="selected()?.id === report.id">
+          <td><button class="report-link" (click)="openReport(report.id)">#{{ report.id }} · {{ report.subject }}</button><div class="muted">{{ categoryLabel(report.category) }} · {{ report.contact_email }}</div></td>
+          <td><span class="badge" [ngClass]="statusClass(report.status)">{{ statusLabel(report.status) }}</span></td>
+          <td>{{ assigneeName(report.assigned_to_user_id) }}</td><td class="date-cell">{{ formatDateTime(report.created_at) }}</td>
+          <td><button class="btn btn-outline btn-sm" (click)="openReport(report.id)" [attr.aria-label]="'Abrir reporte ' + report.id">Abrir</button></td>
+        </tr>
+      }
+      </tbody></table></div>
+      @if (!reports().length) { <div class="empty-state"><p>No hay reportes con estos filtros.</p><button class="btn btn-outline" (click)="clearFilters()">Limpiar filtros</button></div> }
+      <div class="pager"><button class="btn btn-outline btn-sm" [disabled]="page <= 1" (click)="load(page - 1)">Anterior</button><span>Página {{ page }} · {{ total }} reportes</span><button class="btn btn-outline btn-sm" [disabled]="page * 20 >= total" (click)="load(page + 1)">Siguiente</button></div>
+    }
+  </section>
+  @if (detailLoading()) { <p role="status">Abriendo reporte…</p> }
+  @if (selected(); as report) {
+    <section class="card case-detail" aria-labelledby="case-title">
+      <div class="case-header"><div><p class="eyebrow">Reporte #{{ report.id }}</p><h2 id="case-title" tabindex="-1">{{ report.subject }}</h2><span class="badge" [ngClass]="statusClass(report.status)">{{ statusLabel(report.status) }}</span></div><button class="btn btn-outline btn-sm" (click)="closeDetail()" [disabled]="saving()">Cerrar detalle</button></div>
+      <div class="case-grid">
+        <div>
+          <div class="report-copy"><h3>Lo que nos cuenta el usuario</h3><p>{{ report.description }}</p></div>
+          @if (report.response && !messages().length) { <div class="response-box"><h3>Última respuesta</h3><p>{{ report.response }}</p></div> }
+          <h3 class="thread-title">Conversación e historial</h3>
+          <div class="thread" aria-live="polite">
+            @for (item of messages(); track item.id) {
+              <article class="thread-item" [class.internal]="item.is_internal"><div class="thread-meta"><strong>{{ item.author_label }}</strong><time>{{ formatDateTime(item.created_at) }}</time>@if (item.is_internal) { <span class="badge badge-orange">Nota interna</span> }</div><p>{{ item.body }}</p></article>
+            }
+            @if (!messages().length) { <p class="muted">Todavía no hay mensajes. Asígnate el reporte para empezar.</p> }
+          </div>
+          @if (messageTotal > 50) { <div class="pager"><button class="btn btn-sm btn-outline" [disabled]="messagePage <= 1" (click)="loadMessages(messagePage - 1)">Mensajes anteriores</button><span>{{ messagePage }}</span><button class="btn btn-sm btn-outline" [disabled]="messagePage * 50 >= messageTotal" (click)="loadMessages(messagePage + 1)">Mensajes siguientes</button></div> }
+          @if (canManage(report) && report.status !== 'CLOSED') {
+            @if (report.status === 'RESOLVED') {
+              <div class="response-box"><p>La solución ya fue enviada. Puedes continuar la revisión o cerrar el caso.</p><div class="actions"><button class="btn btn-outline" [disabled]="saving()" (click)="changeStatus(report.id, 'IN_REVIEW')">Continuar revisión</button><button class="btn btn-primary" [disabled]="saving()" (click)="changeStatus(report.id, 'CLOSED')">Cerrar caso</button></div><p class="muted">Un caso cerrado no admite más respuestas.</p></div>
+            } @else {
+              <div class="response-editor"><label for="supportResponse">{{ internal ? 'Nota para el equipo' : 'Respuesta para el usuario' }}</label><textarea id="supportResponse" rows="5" maxlength="1000" [(ngModel)]="response"></textarea><label class="check"><input type="checkbox" [(ngModel)]="internal" /> Guardar como nota interna; el usuario no la verá</label><div class="actions"><button class="btn btn-outline" [disabled]="saving() || !response.trim()" (click)="send(report)">{{ internal ? 'Guardar nota' : 'Enviar respuesta' }}</button>@if (!internal) { <button class="btn btn-primary" [disabled]="saving() || !response.trim()" (click)="resolve(report.id)">Enviar solución y resolver</button> }</div></div>
+              @if (report.status === 'IN_REVIEW') {
+                <div class="escalation"><button class="btn btn-ghost" [disabled]="saving()" (click)="showEscalation = !showEscalation">{{ showEscalation ? 'Cancelar escalamiento' : 'Necesito apoyo de administración' }}</button>@if (showEscalation) { <label for="escalationReason">¿Qué revisaste y qué debe atender administración?</label><textarea id="escalationReason" rows="3" maxlength="900" [(ngModel)]="reason"></textarea><p class="muted">El motivo será visible para el equipo. El usuario recibirá un aviso del cambio.</p><button class="btn btn-outline" [disabled]="saving() || reason.trim().length < 10" (click)="escalate(report.id)">Enviar a administración</button> }</div>
+              }
+            }
+          } @else if (report.status === 'ESCALATED' && !auth.isAdmin()) { <p class="response-box">Administración continuará la atención de este caso. Puedes consultar el historial.</p> }
+        </div>
+        <aside class="case-context" aria-label="Información del caso">
+          <h3>Información del caso</h3><dl><dt>Solicitante</dt><dd>{{ report.reporter?.full_name || 'Solicitud sin sesión' }}</dd><dt>Correo de contacto</dt><dd>{{ report.contact_email }}</dd><dt>Categoría</dt><dd>{{ categoryLabel(report.category) }}</dd><dt>A cargo de</dt><dd>{{ report.assignee?.full_name || 'Sin asignar' }}</dd></dl>
+          @if (canTake(report)) { <button class="btn btn-primary" [disabled]="saving()" (click)="assignSelf(report.id)">Atender este reporte</button> }
+          @if (auth.isAdmin() && report.status !== 'RESOLVED' && report.status !== 'CLOSED') { <label for="caseAssignee">Asignar a</label><select id="caseAssignee" class="filter-select" [(ngModel)]="assigneeId"><option [ngValue]="null">Seleccionar persona</option>@for (agent of eligibleAgents(report); track agent.id) { <option [ngValue]="agent.id">{{ agent.full_name }}</option> }</select><button class="btn btn-outline" [disabled]="saving() || !assigneeId || assigneeId === report.assigned_to_user_id" (click)="assign(report.id)">Actualizar asignación</button> }
+          @if (report.reporter) { <a class="btn btn-outline" routerLink="/soporte/diagnostico" [queryParams]="{ user: report.reporter.id }">Consultar cuenta y viajes</a>@if (auth.isAdmin()) { <a class="btn btn-outline" routerLink="/admin/usuarios">Administrar cuentas</a> } }
+          @if (report.trip) { <div class="context-box"><span class="muted">Viaje relacionado</span><strong>{{ report.trip.name }}</strong></div> }
+          <div class="context-box"><h3>Criterio de atención</h3><p>Orienta sobre acceso, permisos, gastos o votaciones con la información del diagnóstico. Registra los pasos que permitieron resolver el problema.</p><p>Escala cambios de cuenta o fallos que requieran intervención administrativa. No solicites contraseñas.</p></div>
+        </aside>
+      </div>
+    </section>
+  }
+</div>

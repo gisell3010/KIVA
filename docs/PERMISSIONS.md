@@ -7,7 +7,7 @@ KIVA separa los **roles globales de plataforma** de los **roles contextuales** d
 | Rol | Responsabilidad |
 |---|---|
 | `USER` | Utilizar KIVA y organizar o participar en viajes. |
-| `SUPPORT` | Diagnosticar incidencias principalmente en modo lectura. Puede revocar sesiones de una cuenta `USER` por un problema de acceso o seguridad, dejando auditoría. |
+| `SUPPORT` | Recibir y atender reportes, consultar información básica necesaria para diagnosticar incidencias y escalar casos que requieran intervención administrativa. |
 | `ADMIN` | Operar y supervisar la plataforma. Puede suspender o reactivar cuentas `USER`, pero no alterar los viajes privados por ese hecho. |
 | `SUPER_ADMIN` | Gestionar seguridad global, roles de staff, estados de cuenta, auditoría, salud y configuración efectiva. |
 
@@ -73,11 +73,10 @@ Tiene todo lo del `ORGANIZER` y además:
 
 `SUPPORT`, `ADMIN` y `SUPER_ADMIN` pueden disponer de vistas globales de diagnóstico o supervisión, pero **no obtienen permisos contextuales sobre grupos o viajes privados**. Si un `SUPER_ADMIN` es `MEMBER` de un viaje, dentro de ese viaje actúa como `MEMBER`; solo lo administra si su rol contextual es `OWNER` u `ORGANIZER`.
 
+## Privacidad y alcance del acceso
 
-## Herramientas de diagnóstico implementadas
+La API comprueba los permisos en cada operación. Las notificaciones y sesiones se restringen a su titular; los recursos de viaje requieren la pertenencia y el rol contextual correspondientes.
 
-En `/soporte/usuarios`, el detalle de una cuenta permite abrir sus grupos y viajes relacionados. La vista `/soporte/diagnostico` consulta participantes, destinos, actividades, gastos, repartos, votaciones, resultados y reservas. Los pagadores y participantes se presentan con su nombre. Estos endpoints usan `SupportUser` y comprobaciones de rol global independientes; no conceden membresía en los endpoints privados.
+El solicitante consulta sus propios reportes y mensajes públicos. Las notas internas se reservan al equipo autorizado. Las solicitudes sin sesión requieren número de reporte y clave privada; conocer el correo no acredita identidad.
 
-La acción `POST /api/support/users/{user_id}/revoke-sessions` acepta únicamente cuentas `USER`, invalida sus sesiones y registra `SUPPORT_SESSIONS_REVOKE` en auditoría. No cambia el estado, el rol ni la pertenencia a grupos o viajes. ADMIN y SUPER_ADMIN acceden también a estas herramientas.
-
-En auditoría se consulta el nombre y el rol global actual del autor mediante una relación con `auth.users`; no se almacena una copia histórica del nombre o del rol. El identificador original permanece en el registro.
+En auditoría, el nombre y el rol global del autor se consultan desde su cuenta actual; no representan una copia histórica de esos datos.

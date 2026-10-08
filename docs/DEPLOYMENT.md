@@ -1,14 +1,14 @@
-# Despliegue académico de KIVA
+# Despliegue de KIVA
 
-El despliegue público elegido para KIVA evita servicios de pago:
+La configuración de referencia utiliza los servicios siguientes; la disponibilidad y permanencia dependen del plan:
 
 ```text
 Usuario
   -> Render Static Site (Angular)
   -> /api rewrite
-  -> Render Web Service Free (Docker + Uvicorn + FastAPI)
-       -> Render Postgres Free
-       -> Cloudinary Free (imágenes)
+  -> Render Web Service (Docker + Uvicorn + FastAPI)
+       -> Render Postgres
+       -> Cloudinary (imágenes)
 ```
 
 ## Imágenes
@@ -37,4 +37,17 @@ Las credenciales de Cloudinary pertenecen exclusivamente al backend y no deben i
 
 ## Nginx
 
-Nginx se conserva como alternativa de despliegue Docker/VPS y para demostrar cómo se sirve un build estático de Angular y cómo funciona un reverse proxy. No participa en la ruta pública final de Render.
+En la alternativa Docker/VPS, Nginx sirve el build estático de Angular; un proxy Nginx exterior termina HTTPS y dirige las peticiones a la API o al frontend. No participa en la configuración de Render con Static Site.
+
+
+## Actualización y verificación
+
+La guía operativa está en [Despliegue en Render](../deploy/render/README.md). Una base vacía se inicializa con `database/install.sql`. Una base KIVA existente se actualiza, previo respaldo, con `python -m alembic upgrade head` desde `backend/`. La revisión Alembic no sustituye la instalación inicial del dominio.
+
+Angular 22.2.1 utiliza Node.js 24.15 o posterior de la rama 24 en la configuración recomendada del proyecto.
+
+Los límites y la caducidad de los recursos gratuitos se consultan en las [condiciones de Render](https://render.com/docs/free). Los respaldos deben conservarse fuera del servicio. Cambiar `IMAGE_STORAGE` no transfiere automáticamente las fotografías locales a Cloudinary.
+
+## Comprobación del servicio
+
+La comprobación comprende salud de la API y de la base, autenticación, renovación de sesión, configuración de cuenta, imágenes, grupos, viajes, recursos de planificación, gastos, votaciones, reservas, calendario, notificaciones y permisos de los cuatro roles globales. El procedimiento y los resultados esperados se describen en la guía de Render.

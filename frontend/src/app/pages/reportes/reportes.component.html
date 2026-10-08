@@ -1,0 +1,76 @@
+<div class="reports-page">
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">Mis reportes</h1>
+      <p class="page-subtitle">Comunica una incidencia y consulta el seguimiento realizado por soporte.</p>
+    </div>
+  </div>
+
+  @if (error()) { <div class="error-banner" role="alert">{{ error() }}</div> }
+  @if (message()) { <div class="success-banner" role="status">{{ message() }}</div> }
+
+  <div class="reports-grid">
+    <section class="card report-form">
+      <h2>Nuevo reporte</h2>
+
+      <label for="reportCategory">Categoría</label>
+      <select id="reportCategory" class="filter-select" [(ngModel)]="category">
+        @for (item of categories; track item.value) { <option [value]="item.value">{{ item.label }}</option> }
+      </select>
+
+      <label for="reportTrip">Viaje relacionado</label>
+      <select id="reportTrip" class="filter-select" [value]="tripId ?? ''" (change)="onTripSelect($event)">
+        <option value="">No aplica</option>
+        @for (trip of trips(); track trip.id) { <option [value]="trip.id">{{ trip.name }}</option> }
+      </select>
+
+      <label for="reportSubject">Asunto</label>
+      <input id="reportSubject" class="filter-input" maxlength="150" [(ngModel)]="subject" />
+
+      <label for="reportDescription">Descripción</label>
+      <textarea id="reportDescription" rows="6" maxlength="1000" [(ngModel)]="description"></textarea>
+
+      <button type="button" class="btn btn-primary" [disabled]="submitting()" (click)="submit()">
+        {{ submitting() ? 'Enviando...' : 'Enviar reporte' }}
+      </button>
+    </section>
+
+    <section class="card report-list">
+      <div class="report-head"><h2>Seguimiento</h2><button class="btn btn-outline btn-sm" (click)="loadReports()" [disabled]="loading()">Actualizar</button></div>
+      @if (loading()) {
+        <p>Cargando reportes...</p>
+      } @else {
+        @for (report of reports(); track report.id) {
+          <article class="report-item">
+            <div class="report-head">
+              <strong>#{{ report.id }} · {{ report.subject }}</strong>
+              <span class="badge badge-gray">{{ statusLabel(report.status) }}</span>
+            </div>
+            <div class="report-meta">{{ categoryLabel(report.category) }} · {{ formatDateTime(report.created_at) }}</div>
+            <p>{{ report.description }}</p>
+            @if (report.response) {
+              <div class="support-response"><strong>Respuesta de soporte</strong><p>{{ report.response }}</p></div>
+            }
+            <button type="button" class="btn btn-outline btn-sm" (click)="openReport(report.id)">Ver conversación</button>
+          </article>
+        }
+        @if (!error() && !reports().length) { <div class="empty-state">Todavía no has enviado reportes.</div> }
+      }
+      @if (total > 20) { <div class="report-head"><button class="btn btn-outline" [disabled]="page <= 1" (click)="loadReports(page - 1)">Anterior</button><span>Página {{ page }}</span><button class="btn btn-outline" [disabled]="page * 20 >= total" (click)="loadReports(page + 1)">Siguiente</button></div> }
+    </section>
+  </div>
+  @if (selected(); as report) {
+    <section class="card conversation" aria-label="Conversación del reporte">
+      <div class="report-head"><h2>#{{ report.id }} · {{ report.subject }}</h2><button class="btn btn-outline btn-sm" (click)="selected.set(null)">Cerrar detalle</button></div>
+      <p>{{ statusLabel(report.status) }}</p>
+      @for (item of messages(); track item.id) { <article class="support-response"><div class="report-head"><strong>{{ item.author_label }}</strong><span class="report-meta">{{ formatDateTime(item.created_at) }}</span></div><p>{{ item.body }}</p></article> }
+      @if (!messages().length) { <p>Tu reporte está registrado. Aquí verás las respuestas del equipo.</p> }
+      @if (messageTotal > 50) { <div class="report-head"><button class="btn btn-outline" [disabled]="messagePage <= 1" (click)="loadMessages(messagePage - 1)">Anteriores</button><button class="btn btn-outline" [disabled]="messagePage * 50 >= messageTotal" (click)="loadMessages(messagePage + 1)">Siguientes</button></div> }
+      @if (report.status !== 'CLOSED') {
+        <label for="reportReply">{{ report.status === 'RESOLVED' ? '¿Necesitas continuar con este caso? Explica qué falta por resolver.' : 'Añadir información al reporte' }}</label>
+        <textarea id="reportReply" rows="4" maxlength="1000" [(ngModel)]="replyText"></textarea>
+        <button class="btn btn-primary" [disabled]="submitting() || !replyText.trim()" (click)="reply()">{{ report.status === 'RESOLVED' ? 'Enviar y reabrir reporte' : 'Enviar respuesta' }}</button>
+      } @else { <p>Este caso está cerrado. Si tienes otro problema, puedes crear un nuevo reporte.</p> }
+    </section>
+  }
+</div>

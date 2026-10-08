@@ -21,18 +21,18 @@ test.describe('Autenticación', () => {
 
   test('valida el formato del correo', async ({ page }) => {
     await page.locator('input[name="email"]').fill('correo-invalido');
-    await expect(page.locator('.error-text')).toContainText('Formato de email inválido');
+    await expect(page.locator('.field-error')).toContainText('Ingresa un correo electrónico válido.');
   });
 
   test('muestra un error con credenciales incorrectas', async ({ page }) => {
     await page.locator('input[name="email"]').fill('noexiste@example.com');
     await page.locator('input[name="password"]').fill(testPassword());
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-    await expect(page.locator('.error-banner')).toBeVisible();
+    await expect(page.getByRole('alert')).toBeVisible();
   });
 
   test('permite navegar al registro', async ({ page }) => {
-    await page.getByRole('link', { name: 'Regístrate' }).click();
+    await page.getByRole('link', { name: 'Crear una cuenta' }).click();
     await expect(page).toHaveURL(/\/register$/);
     await expect(page.locator('h1')).toHaveText('Crear cuenta');
   });

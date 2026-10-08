@@ -8,6 +8,7 @@ class NotificationRead(Schema):
     user_id: Id
     title: str
     message: str
+    action_path: str | None = None
     is_read: bool
     created_at: UTCDateTime
 

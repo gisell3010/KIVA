@@ -1,6 +1,8 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { allPages } from '../../core/http/all-pages';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { catchError, forkJoin, of } from 'rxjs';
 import { ApiError } from '../../core/http/error.interceptor';
@@ -29,6 +31,8 @@ import { isTripManager } from '../../shared/utils/permissions.utils';
   styleUrl: './votaciones.component.css',
 })
 export class VotacionesComponent implements OnInit {
+  private readonly notificationDestroyRef = inject(DestroyRef);
+  private readonly notificationRoute = inject(ActivatedRoute);
   private readonly pollsApi = inject(PollsApiService);
   private readonly destinationsApi = inject(DestinationsApiService);
   private readonly tripsApi = inject(TripsApiService);
@@ -62,6 +66,12 @@ export class VotacionesComponent implements OnInit {
   readonly formatDate = formatDate;
 
   ngOnInit(): void {
+    this.notificationRoute.queryParamMap.pipe(takeUntilDestroyed(this.notificationDestroyRef)).subscribe(params => {
+      const id = Number(params.get('trip'));
+      if (id && id !== this.selectedTripId() && this.trips().some(trip => trip.id === id)) {
+        this.selectedTripId.set(id); this.closePoll(); this.loadPolls(); this.loadTripCover(id);
+      }
+    });
     this.loadTrips();
     this.loadGroups();
   }
@@ -73,7 +83,7 @@ export class VotacionesComponent implements OnInit {
           this.trips.set(page.items);
 
           if (page.items.length && this.selectedTripId() === null) {
-            const firstTripId = page.items[0].id;
+            const firstTripId = (page.items.find(trip => trip.id === Number(this.notificationRoute.snapshot.queryParamMap.get('trip'))) ?? page.items[0]).id;
             this.selectedTripId.set(firstTripId);
             this.loadPolls();
             this.loadTripCover(firstTripId);

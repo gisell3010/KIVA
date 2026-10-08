@@ -18,12 +18,6 @@ export class AdminApiService {
     );
   }
 
-  supportDashboard() {
-    return this.http.get<M.SupportDashboardRead>(
-      `${this.url}/support/dashboard`,
-    );
-  }
-
   superAdminDashboard() {
     return this.http.get<M.AdminDashboardRead>(
       `${this.url}/super-admin/dashboard`,
@@ -56,19 +50,6 @@ export class AdminApiService {
     );
   }
 
-  supportUsers(filters: M.UserFilters = {}) {
-    return this.http.get<M.Page<M.UserRead>>(
-      `${this.url}/support/users`,
-      { params: apiParams(filters) },
-    );
-  }
-
-  supportUser(id: number) {
-    return this.http.get<M.UserRead>(
-      `${this.url}/support/users/${id}`,
-    );
-  }
-
   groups(filters: M.Pagination & { q?: string } = {}) {
     return this.http.get<M.Page<M.GroupRead>>(
       `${this.url}/admin/groups`,
@@ -87,22 +68,6 @@ export class AdminApiService {
       `${this.url}/admin/trips`,
       { params: apiParams(filters) },
     );
-  }
-
-  supportGroups(userId: number, page = 1) {
-    return this.http.get<M.Page<M.GroupRead>>(`${this.url}/support/users/${userId}/groups`, { params: { page, page_size: 10 } });
-  }
-  supportTrips(userId: number, page = 1) {
-    return this.http.get<M.Page<M.TripRead>>(`${this.url}/support/users/${userId}/trips`, { params: { page, page_size: 10 } });
-  }
-  revokeUserSessions(userId: number) {
-    return this.http.post<void>(`${this.url}/support/users/${userId}/revoke-sessions`, {});
-  }
-  supportTrip(tripId: number) {
-    return this.http.get<M.TripRead>(`${this.url}/support/trips/${tripId}`);
-  }
-  diagnostic(tripId: number, section: string, page = 1) {
-    return this.http.get<M.Page<{ id: number; title: string; detail: string }>>(`${this.url}/support/trips/${tripId}/diagnostic/${section}`, { params: { page, page_size: 20 } });
   }
 
   config() {

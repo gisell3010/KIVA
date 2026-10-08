@@ -133,6 +133,7 @@ def select_destination(
     if data.is_selected and not was_selected:
         notify_trip_members(
             db,
+            action_path=f"/destinos?trip={trip_id}",
             trip_id=trip_id,
             title="Destino seleccionado",
             message=f"{item.place_name}, {item.country} fue seleccionado para {trip.name}.",

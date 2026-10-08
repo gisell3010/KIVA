@@ -42,6 +42,7 @@ def create_notification(
     user_id: int,
     title: str,
     message: str,
+    action_path: str | None = None,
 ) -> Notification:
     title, message = title.strip(), message.strip()
 
@@ -49,15 +50,21 @@ def create_notification(
         not title
         or len(title) > 150
         or not message
-        or len(message) > 300
     ):
         raise ValueError("Contenido de notificación inválido.")
+
+    if action_path is not None and (not action_path.startswith("/") or action_path.startswith("//") or len(action_path) > 200):
+        raise ValueError("El destino debe ser una ruta interna válida.")
+
+    if len(message) > 300:
+        message = message[:297].rstrip() + "..."
 
     notification = Notification(
         user_id=user_id,
         title=title,
         message=message,
         is_read=False,
+        action_path=action_path,
     )
 
     db.add(notification)
@@ -71,6 +78,7 @@ def notify_trip_members(
     title: str,
     message: str,
     exclude_user_id: int | None = None,
+    action_path: str | None = None,
 ) -> None:
     """Crea una notificación para los participantes activos de un viaje.
 
@@ -98,6 +106,7 @@ def notify_trip_members(
             user_id=user_id,
             title=title,
             message=message,
+            action_path=action_path or f"/participantes?trip={trip_id}",
         )
 
 

@@ -74,6 +74,7 @@ def create_reservation(db, *, actor_id, trip_id, data):
 
     notify_trip_members(
         db,
+        action_path=f"/reservas?trip={trip_id}",
         trip_id=trip_id,
         title="Nueva reserva",
         message=f'Se registró la reserva "{item.title}" en {trip.name}.',
@@ -134,6 +135,7 @@ def update_reservation(
         }
         notify_trip_members(
             db,
+            action_path=f"/reservas?trip={trip_id}",
             trip_id=trip_id,
             title="Reserva actualizada",
             message=(
