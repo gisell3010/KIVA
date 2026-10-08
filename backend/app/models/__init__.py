@@ -9,6 +9,7 @@ from app.models.expense import ExpenseCategory, Expense, ExpenseSplit
 from app.models.poll import Poll, PollOption, Vote
 from app.models.reservation import ReservationType, Reservation
 from app.models.notification import Notification
+from app.models.support_report import SupportReport, SupportMessage
 from app.models.audit_log import AuditLog
 
 __all__ = [
@@ -30,5 +31,7 @@ __all__ = [
     "ReservationType",
     "Reservation",
     "Notification",
+    "SupportReport",
+    "SupportMessage",
     "AuditLog",
 ]

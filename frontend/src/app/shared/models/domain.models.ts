@@ -331,6 +331,7 @@ export interface ReservationRead {
 }
 
 export interface NotificationRead {
+  action_path: string | null;
   id: number;
   user_id: number;
   title: string;
@@ -354,13 +355,94 @@ export interface DashboardRead {
   currency: 'COP';
 }
 
+export type SupportCategory =
+  | 'ACCESS'
+  | 'ACCOUNT'
+  | 'TRIP'
+  | 'EXPENSE'
+  | 'VOTING'
+  | 'RESERVATION'
+  | 'TECHNICAL'
+  | 'OTHER';
+
+export type SupportStatus =
+  | 'OPEN'
+  | 'IN_REVIEW'
+  | 'ESCALATED'
+  | 'RESOLVED'
+  | 'CLOSED';
+
+export interface SupportReportCreate {
+  trip_id?: number | null;
+  category: SupportCategory;
+  subject: string;
+  description: string;
+}
+
+export interface PublicSupportReportCreate {
+  contact_email: string;
+  category: 'ACCESS' | 'ACCOUNT' | 'TECHNICAL' | 'OTHER';
+  subject: string;
+  description: string;
+}
+
+export interface SupportReportUpdate {
+  status?: SupportStatus;
+  response?: string;
+}
+
+export interface SupportReportRead {
+  id: number;
+  reported_by_user_id: number | null;
+  assigned_to_user_id: number | null;
+  trip_id: number | null;
+  contact_email: string;
+  category: SupportCategory;
+  subject: string;
+  description: string;
+  status: SupportStatus;
+  response: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+}
+
+export interface SupportReporterRead {
+  id: number;
+  full_name: string;
+  username: string;
+  email: string;
+  role: GlobalRole;
+  status: UserStatus;
+}
+
+export interface SupportTripRead {
+  id: number;
+  group_id: number;
+  name: string;
+  status: TripStatus;
+  start_date: string | null;
+  end_date: string | null;
+}
+
+export interface SupportReportDetail extends SupportReportRead {
+  reporter: SupportReporterRead | null;
+  assignee: SupportReporterRead | null;
+  trip: SupportTripRead | null;
+}
+
 export interface SupportDashboardRead {
+  open_reports_count: number;
+  in_review_reports_count: number;
+  escalated_reports_count: number;
+  resolved_reports_count: number;
+  unassigned_reports_count: number;
+}
+
+export interface AdminDashboardRead {
   users_count: number;
   active_users_count: number;
   suspended_users_count: number;
-}
-
-export interface AdminDashboardRead extends SupportDashboardRead {
   groups_count: number;
   trips_count: number;
   active_trips_count: number;
@@ -428,4 +510,17 @@ export interface HealthRead {
 
 export interface ReadinessRead extends HealthRead {
   database: 'ok' | 'unavailable';
+}
+
+export interface SupportMessageRead {
+  id: number;
+  author_id: number | null;
+  author_label: string;
+  body: string;
+  is_internal: boolean;
+  created_at: string;
+}
+
+export interface PublicSupportReceipt extends SupportReportRead {
+  tracking_token: string;
 }

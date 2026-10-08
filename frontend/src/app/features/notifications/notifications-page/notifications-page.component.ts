@@ -1,3 +1,5 @@
+import { RouterLink } from '@angular/router';
+import { NotificationStateService } from '../../../data-access/notification-state.service';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { UsersApiService } from '../../../data-access/api/users-api.service';
@@ -11,7 +13,7 @@ type NotificationKind = 'group' | 'trip' | 'vote' | 'reservation' | 'calendar' |
 @Component({
   selector: 'app-notifications-page',
   standalone: true,
-  imports: [CommonModule, PaginationComponent],
+  imports: [CommonModule, PaginationComponent, RouterLink],
   templateUrl: './notifications-page.component.html',
   styleUrl: './notifications-page.component.css',
 })
@@ -19,7 +21,8 @@ export class NotificationsPageComponent implements OnInit {
   private readonly usersApi = inject(UsersApiService);
 
   readonly notifications = signal<NotificationRead[]>([]);
-  readonly unreadCount = signal<UnreadCount>({ total: 0 });
+  readonly state = inject(NotificationStateService);
+  readonly unreadCount = this.state.count;
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly filter = signal<NotificationFilter>('all');
@@ -64,12 +67,9 @@ export class NotificationsPageComponent implements OnInit {
     });
   }
 
-  loadUnreadCount(): void {
-    this.usersApi.unreadCount().subscribe({
-      next: (count) => this.unreadCount.set(count),
-      error: () => this.unreadCount.set({ total: 0 }),
-    });
-  }
+  loadUnreadCount(): void { this.state.refresh(); }
+
+  actionParams(path: string): Record<string, string> { const params: Record<string, string> = {}; new URLSearchParams(path.split('?')[1] ?? '').forEach((value, key) => params[key] = value); return params; }
 
   markAsRead(id: number): void {
     this.error.set(null);
@@ -90,7 +90,7 @@ export class NotificationsPageComponent implements OnInit {
 
     this.usersApi.markAllAsRead().subscribe({
       next: () => {
-        this.unreadCount.set({ total: 0 });
+        this.state.refresh();
         this.loadNotifications();
       },
       error: () => {

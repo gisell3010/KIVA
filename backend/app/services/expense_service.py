@@ -151,6 +151,7 @@ def create_expense(db, *, actor_id, trip_id, data):
     }:
         create_notification(
             db,
+            action_path=f"/gastos?trip={trip_id}",
             user_id=user_id,
             title="Nuevo gasto compartido",
             message=f'Se registró el gasto "{item.title}" en {trip.name}.',

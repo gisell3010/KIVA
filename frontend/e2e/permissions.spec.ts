@@ -68,7 +68,7 @@ test.describe('Roles globales', () => {
     await expect(page.locator('.config-grid')).toBeVisible();
 
     await page.goto('/super-admin/auditoria');
-    await expect(page.locator('.page-title')).toContainText('Auditoría');
+    await expect(page.locator('.page-title')).toContainText('Registro de auditoría');
     await expect(page.locator('.admin-table')).toBeVisible();
 
     await page.goto('/super-admin/salud');
@@ -126,28 +126,36 @@ test.describe('Roles contextuales', () => {
   });
 });
 
-test('soporte consulta un viaje ajeno y cierra sesiones sin administrar sus registros', async ({ page }, testInfo) => {
+test('soporte recibe, revisa y resuelve un reporte sin administrar el viaje', async ({ page }, testInfo) => {
   const owner = makeAccount('incidencia', testInfo);
   const support = makeAccount('diagnostico', testInfo);
+
   await registerUser(page, owner);
   const { tripName } = await createGroupAndTrip(page, testInfo);
+
+  await page.goto('/reportes');
+  await page.locator('#reportCategory').selectOption('TRIP');
+  await page.locator('#reportTrip').selectOption({ label: tripName });
+  await page.locator('#reportSubject').fill('Información incorrecta del viaje');
+  await page.locator('#reportDescription').fill('Necesito que soporte revise la información mostrada.');
+  await page.getByRole('button', { name: 'Enviar reporte' }).click();
+  await expect(page.getByRole('status')).toContainText('reporte fue enviado');
+
   await resetSession(page);
   await registerUser(page, support);
   await resetSession(page);
   await loginSuperAdmin(page);
   await promoteGlobalRole(page, support.username, 'SUPPORT');
+
   await resetSession(page);
   await login(page, support, /\/soporte$/);
-  await page.goto('/soporte/usuarios');
-  await page.locator('input[placeholder="Buscar por nombre, usuario o email"]').fill(owner.username);
-  await page.getByRole('button', { name: 'Buscar' }).click();
-  const row = page.locator('tbody tr').filter({ hasText: `@${owner.username}` });
-  await row.getByRole('button', { name: 'Ver detalle' }).click();
-  await page.getByRole('link', { name: 'Consultar grupos y viajes' }).click();
-  await page.getByRole('button', { name: new RegExp(tripName) }).click();
-  await expect(page.locator('.record')).not.toHaveCount(0);
+  await page.goto('/soporte/reportes');
+  await page.locator('input[name="query"]').fill(owner.email);
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  await page.locator('tbody tr').filter({ hasText: owner.email }).getByRole('button', { name: /^Abrir reporte/ }).click();
+  await page.getByRole('button', { name: 'Atender este reporte' }).click();
+  await page.locator('#supportResponse').fill('La información fue revisada.');
+  await page.getByRole('button', { name: 'Enviar solución y resolver' }).click();
+  await expect(page.getByRole('status')).toContainText('Solución enviada');
   await expect(page.getByRole('button', { name: /Editar|Eliminar|Suspender/ })).toHaveCount(0);
-  page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: 'Cerrar sesiones de la cuenta' }).click();
-  await expect(page.getByRole('status')).toContainText('Las sesiones se cerraron');
 });

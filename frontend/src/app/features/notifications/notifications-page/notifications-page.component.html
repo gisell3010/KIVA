@@ -121,6 +121,7 @@
             </div>
 
             <p class="notification-message">{{ notification.message }}</p>
+            @if (notification.action_path) { <a class="btn btn-outline btn-sm" [routerLink]="notification.action_path.split('?')[0]" [queryParams]="actionParams(notification.action_path)" (click)="!notification.is_read && markAsRead(notification.id)">Abrir detalle</a> }
           </div>
 
           <div class="notification-actions">
@@ -166,7 +167,7 @@
             {{
               filter() === 'unread'
                 ? 'No tienes notificaciones pendientes por leer.'
-                : 'Aquí aparecerán los cambios importantes de tus grupos y viajes.'
+                : 'Aquí aparecerán las novedades de tus viajes y las solicitudes que te corresponden.'
             }}
           </p>
         </div>

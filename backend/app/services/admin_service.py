@@ -4,10 +4,7 @@ from app.core.config import get_settings
 from app.models.group import TravelGroup
 from app.models.trip import Trip
 from app.models.user import User
-from app.schemas.admin import (
-    SupportDashboardRead,
-    SystemConfigRead,
-)
+from app.schemas.admin import SystemConfigRead
 from app.schemas.group import GroupRead
 from app.schemas.trip import TripRead
 from app.services import (
@@ -123,26 +120,6 @@ def list_trips(
         ),
         pagination,
         TripRead,
-    )
-
-
-def get_support_dashboard(db, *, actor_id):
-    _authorize(db, actor_id, STAFF)
-
-    counts = dict(
-        db.execute(
-            select(
-                User.status,
-                func.count(User.id),
-            )
-            .group_by(User.status)
-        ).all()
-    )
-
-    return SupportDashboardRead(
-        users_count=sum(counts.values()),
-        active_users_count=counts.get("ACTIVE", 0),
-        suspended_users_count=counts.get("SUSPENDED", 0),
     )
 
 

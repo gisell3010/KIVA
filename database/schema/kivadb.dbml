@@ -166,7 +166,35 @@ Table app.notifications {
   user_id integer [not null]
   title varchar(150) [not null]
   message varchar(300) [not null]
+  action_path varchar(200)
   is_read boolean [not null, default: false]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table app.support_reports {
+  id integer [pk, increment]
+  reported_by_user_id integer
+  assigned_to_user_id integer
+  trip_id integer
+  contact_email varchar(150) [not null]
+  category varchar(30) [not null]
+  subject varchar(150) [not null]
+  description varchar(1000) [not null]
+  status varchar(20) [not null, default: 'OPEN']
+  tracking_token_hash varchar(64)
+  response varchar(1000)
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  resolved_at timestamptz
+}
+
+Table app.support_messages {
+  id integer [pk, increment]
+  report_id integer [not null]
+  author_id integer
+  author_label varchar(150) [not null]
+  body varchar(1000) [not null]
+  is_internal boolean [not null, default: false]
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 }
 
@@ -202,4 +230,9 @@ Ref fk_votes_option: app.votes.option_id > app.poll_options.id [delete: cascade]
 Ref fk_reservations_trip: app.reservations.trip_id > app.trips.id [delete: cascade]
 Ref fk_reservations_type: app.reservations.type_id > app.reservation_types.id [delete: restrict]
 Ref fk_notifications_user: app.notifications.user_id > auth.users.id [delete: cascade]
+Ref fk_support_reports_reporter: app.support_reports.reported_by_user_id >? auth.users.id [delete: set null]
+Ref fk_support_reports_assignee: app.support_reports.assigned_to_user_id >? auth.users.id [delete: set null]
+Ref fk_support_reports_trip: app.support_reports.trip_id >? app.trips.id [delete: set null]
 Ref fk_audit_logs_user: audit.audit_logs.user_id >? auth.users.id [delete: set null]
+Ref: app.support_messages.report_id > app.support_reports.id [delete: cascade]
+Ref: app.support_messages.author_id > auth.users.id [delete: set null]

@@ -1,12 +1,12 @@
 # Backend de KIVA
 
-API REST de KIVA para la organización de viajes grupales. Está desarrollada con Python 3.14, FastAPI, SQLAlchemy 2.0 y PostgreSQL.
+API REST de KIVA para la organización de viajes grupales. Está desarrollada con Python 3.12+ (imagen Docker 3.14), FastAPI, SQLAlchemy 2.0 y PostgreSQL.
 
 El frontend Angular consume la API mediante el prefijo `/api`.
 
 ## Requisitos
 
-- Python 3.14.
+- Python 3.12+ (imagen Docker 3.14).
 - PostgreSQL 16 o compatible.
 - `pip`.
 
@@ -16,9 +16,9 @@ Desde la raíz del proyecto:
 
 ```powershell
 cd backend
-py -3.14 -m venv .venv
+py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements-dev.txt
+python -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
 ```
 
@@ -73,7 +73,7 @@ Los roles contextuales de grupos y viajes son independientes del rol global.
 | Rol | Responsabilidad |
 |---|---|
 | `USER` | Uso general de KIVA |
-| `SUPPORT` | Consulta y diagnóstico de incidencias |
+| `SUPPORT` | Gestión de reportes y diagnóstico de incidencias en modo de mínimo privilegio |
 | `ADMIN` | Operación y supervisión de la plataforma |
 | `SUPER_ADMIN` | Seguridad, roles globales y control técnico |
 
@@ -172,30 +172,16 @@ backend/
 | Dashboard | `/api/dashboard` |
 | Admin | `/api/admin` |
 | Support | `/api/support` |
+| Reportes de soporte | `/api/support-reports` |
 | SuperAdmin | `/api/super-admin` |
 
 ## Migraciones
 
-La estructura inicial se instala mediante:
+La instalación nueva usa `database/install.sql`. Sobre una base ya instalada, ejecuta `alembic upgrade head` desde `backend/`, con `.env` configurado. La revisión `20261007_support` añade el flujo de soporte y conserva los datos; también admite una base previa sin `support_reports`.
 
-```text
-database/install.sql
-```
+Después de una instalación nueva, `python -m alembic upgrade head` registra la revisión sobre la estructura completa. Las bases existentes se actualizan con el mismo comando, previo respaldo. `alembic stamp` solo cambia el registro de versión y no ejecuta cambios de estructura.
 
-Alembic está configurado, pero `alembic/versions/` todavía no contiene una línea base equivalente al esquema inicial.
-
-Los cambios posteriores podrán gestionarse mediante:
-
-```powershell
-alembic revision --autogenerate -m "descripcion_cambio"
-alembic upgrade head
-```
-
-Más información:
-
-```text
-alembic/README
-```
+La conexión de Alembic utiliza el mismo `database_url` del motor SQLAlchemy. El historial está en `auth.alembic_version`.
 
 ## Archivos privados
 

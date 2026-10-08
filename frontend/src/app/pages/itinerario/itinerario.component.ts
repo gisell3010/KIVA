@@ -1,6 +1,8 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { allPages } from '../../core/http/all-pages';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiError } from '../../core/http/error.interceptor';
 import { ActivitiesApiService } from '../../data-access/api/activities-api.service';
@@ -31,6 +33,8 @@ interface ItineraryDay {
   styleUrl: './itinerario.component.css',
 })
 export class ItinerarioComponent implements OnInit {
+  private readonly notificationDestroyRef = inject(DestroyRef);
+  private readonly notificationRoute = inject(ActivatedRoute);
   private readonly activitiesApi = inject(ActivitiesApiService);
   private readonly tripsApi = inject(TripsApiService);
   private readonly groupsApi = inject(GroupsApiService);
@@ -76,6 +80,12 @@ export class ItinerarioComponent implements OnInit {
   readonly formatDate = formatDate;
 
   ngOnInit(): void {
+    this.notificationRoute.queryParamMap.pipe(takeUntilDestroyed(this.notificationDestroyRef)).subscribe(params => {
+      const id = Number(params.get('trip'));
+      if (id && id !== this.selectedTripId() && this.trips().some(trip => trip.id === id)) {
+        this.selectedTripId.set(id); this.closeForm(); this.loadItinerary(id);
+      }
+    });
     this.loadGroups();
     this.loadTrips();
   }
@@ -92,8 +102,8 @@ export class ItinerarioComponent implements OnInit {
       next: (p) => {
         this.trips.set(p.items);
         if (p.items.length && this.selectedTripId() === null) {
-          this.selectedTripId.set(p.items[0].id);
-          this.loadItinerary(p.items[0].id);
+          this.selectedTripId.set((p.items.find(trip => trip.id === Number(this.notificationRoute.snapshot.queryParamMap.get('trip'))) ?? p.items[0]).id);
+          this.loadItinerary((p.items.find(trip => trip.id === Number(this.notificationRoute.snapshot.queryParamMap.get('trip'))) ?? p.items[0]).id);
         }
       },
       error: () => this.fail('No se pudieron cargar los viajes.'),

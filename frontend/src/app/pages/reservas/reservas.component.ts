@@ -1,6 +1,8 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { allPages } from '../../core/http/all-pages';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiError } from '../../core/http/error.interceptor';
 import { CatalogsApiService } from '../../data-access/api/catalogs-api.service';
@@ -27,6 +29,8 @@ import { isTripManager } from '../../shared/utils/permissions.utils';
   styleUrl: './reservas.component.css',
 })
 export class ReservasComponent implements OnInit {
+  private readonly notificationDestroyRef = inject(DestroyRef);
+  private readonly notificationRoute = inject(ActivatedRoute);
   private readonly api = inject(ReservationsApiService);
   private readonly catalogs = inject(CatalogsApiService);
   private readonly tripsApi = inject(TripsApiService);
@@ -59,6 +63,12 @@ export class ReservasComponent implements OnInit {
   readonly formatMoney = formatMoney;
 
   ngOnInit(): void {
+    this.notificationRoute.queryParamMap.pipe(takeUntilDestroyed(this.notificationDestroyRef)).subscribe(params => {
+      const id = Number(params.get('trip'));
+      if (id && id !== this.selectedTripId() && this.trips().some(trip => trip.id === id)) {
+        this.selectedTripId.set(id); this.closeForm(); this.loadReservations(id);
+      }
+    });
     allPages(page => this.groupsApi.list({ page, page_size: 100 })).subscribe({
       next: (p) => this.groups.set(p.items),
     });
@@ -71,8 +81,8 @@ export class ReservasComponent implements OnInit {
       next: (p) => {
         this.trips.set(p.items);
         if (p.items.length) {
-          this.selectedTripId.set(p.items[0].id);
-          this.loadReservations(p.items[0].id);
+          this.selectedTripId.set((p.items.find(trip => trip.id === Number(this.notificationRoute.snapshot.queryParamMap.get('trip'))) ?? p.items[0]).id);
+          this.loadReservations((p.items.find(trip => trip.id === Number(this.notificationRoute.snapshot.queryParamMap.get('trip'))) ?? p.items[0]).id);
         }
       },
     });

@@ -1,668 +1,72 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { AdminApiService } from '../../../data-access/api/admin-api.service';
+import { forkJoin } from 'rxjs';
+import { SupportApiService } from '../../../data-access/api/support-api.service';
 import { AuthService } from '../../../core/auth/auth.service';
-import { SupportDashboardRead } from '../../../shared/models/domain.models';
+import { SupportDashboardRead, SupportReportRead } from '../../../shared/models/domain.models';
+import { supportStatusLabel, supportStatusClass } from '../../../shared/utils/support.utils';
+import { formatRelativeTime } from '../../../shared/utils/date.utils';
 
 @Component({
-  selector: 'app-support-dashboard',
-  standalone: true,
-  imports: [CommonModule, RouterLink],
+  selector: 'app-support-dashboard', standalone: true, imports: [CommonModule, RouterLink],
   template: `
-    <div class="admin-page">
-      <div class="page-head">
-        <div>
-          <h1 class="page-title">
-            Panel de Soporte
-          </h1>
-          <p class="page-subtitle">
-            Atiende incidencias de cuentas y revisa registros de viajes.
-          </p>
-        </div>
-        <a
-          routerLink="/dashboard"
-          class="btn btn-outline"
-        >
-          Espacio de usuario
-        </a>
-
-      </div>
-
-
-      @if (loading()) {
-
-        <div class="card state-card">
-          <p>
-            Cargando información de soporte...
-          </p>
-        </div>
-
-      } @else if (error()) {
-
-        <div
-          class="card state-card error-text"
-          role="alert"
-        >
-
-          <p>
-            {{ error() }}
-          </p>
-
-          <button
-            type="button"
-            class="btn btn-outline"
-            (click)="loadDashboard()"
-          >
-            Reintentar
-          </button>
-
-        </div>
-
-      } @else if (dashboard()) {
-
+    <div class="support-page">
+      <div class="page-head"><div><p class="eyebrow">Atención a usuarios</p><h1 class="page-title">Panel de soporte</h1><p class="page-subtitle">Consulta la cola de atención y continúa los casos a tu cargo.</p></div><a routerLink="/dashboard" class="btn btn-outline">Espacio personal</a></div>
+      @if (loading()) { <div class="card state-card" role="status">Cargando información de soporte…</div> }
+      @else if (error()) { <div class="card state-card" role="alert"><p>{{ error() }}</p><button class="btn btn-outline" (click)="loadDashboard()">Reintentar</button></div> }
+      @else { @if (dashboard(); as data) {
         <div class="kpi-grid">
-
-          <div class="card kpi-card">
-
-            <div class="kpi-icon users-icon">
-
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                aria-hidden="true"
-              >
-                <path
-                  d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
-                />
-
-                <circle
-                  cx="9"
-                  cy="7"
-                  r="4"
-                />
-
-                <path
-                  d="M23 21v-2a4 4 0 0 0-3-3.87"
-                />
-
-                <path
-                  d="M16 3.13a4 4 0 0 1 0 7.75"
-                />
-              </svg>
-
-            </div>
-
-            <div>
-
-              <div class="kpi-value">
-                {{ dashboard()!.users_count }}
-              </div>
-
-              <div class="kpi-label">
-                Usuarios registrados
-              </div>
-
-            </div>
-
-          </div>
-
-
-          <div class="card kpi-card">
-
-            <div class="kpi-icon active-icon">
-
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="9"
-                />
-
-                <path
-                  d="m8 12 2.5 2.5L16 9"
-                />
-              </svg>
-
-            </div>
-
-            <div>
-
-              <div class="kpi-value">
-                {{ dashboard()!.active_users_count }}
-              </div>
-
-              <div class="kpi-label">
-                Usuarios activos
-              </div>
-
-            </div>
-
-          </div>
-
-
-          <div class="card kpi-card">
-
-            <div class="kpi-icon suspended-icon">
-
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="9"
-                />
-
-                <path d="M8 12h8"/>
-              </svg>
-
-            </div>
-
-            <div>
-
-              <div class="kpi-value">
-                {{ dashboard()!.suspended_users_count }}
-              </div>
-
-              <div class="kpi-label">
-                Usuarios suspendidos
-              </div>
-
-            </div>
-
-          </div>
-
+          <a class="card kpi blue" routerLink="/soporte/reportes" [queryParams]="{estado:'OPEN'}"><span>Por atender</span><strong>{{ data.open_reports_count }}</strong><small>Reportes abiertos <span aria-hidden="true">→</span></small></a>
+          <a class="card kpi amber" routerLink="/soporte/reportes" [queryParams]="{estado:'IN_REVIEW'}"><span>En revisión</span><strong>{{ data.in_review_reports_count }}</strong><small>Atención en curso <span aria-hidden="true">→</span></small></a>
+          <a class="card kpi purple" routerLink="/soporte/reportes" [queryParams]="{estado:'ESCALATED'}"><span>En administración</span><strong>{{ data.escalated_reports_count }}</strong><small>Casos escalados <span aria-hidden="true">→</span></small></a>
+          <a class="card kpi green" routerLink="/soporte/reportes" [queryParams]="{estado:'RESOLVED'}"><span>Resueltos</span><strong>{{ data.resolved_reports_count }}</strong><small>Solución enviada <span aria-hidden="true">→</span></small></a>
         </div>
-
-
-        <div class="support-grid">
-
-          <section class="card support-section">
-
-            <div class="card-header">
-
-              <div>
-                <h2 class="section-title">
-                  Gestión de soporte
-                </h2>
-
-                <p class="section-description">
-                  Consulta la información de los usuarios
-                  para atender solicitudes de soporte.
-                </p>
-              </div>
-
-            </div>
-
-
-            <div class="support-actions">
-
-              <a
-                routerLink="/soporte/usuarios"
-                class="support-action"
-              >
-
-                <div class="action-icon">
-
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.75"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
-                    />
-
-                    <circle
-                      cx="9"
-                      cy="7"
-                      r="4"
-                    />
-
-                    <path
-                      d="M19 8v6"
-                    />
-
-                    <path
-                      d="M22 11h-6"
-                    />
-                  </svg>
-
-                </div>
-
-                <div class="action-content">
-
-                  <strong>
-                    Consultar usuarios
-                  </strong>
-
-                  <span>
-                    Busca usuarios y revisa su información.
-                  </span>
-
-                </div>
-
-                <svg
-                  class="action-arrow"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  aria-hidden="true"
-                >
-                  <path d="m9 18 6-6-6-6"/>
-                </svg>
-
-              </a>
-
-            </div>
-
+        <div class="workspace-grid">
+          <section class="card"><div class="section-head"><h2>Últimas solicitudes</h2><a routerLink="/soporte/reportes">Ver todas</a></div>
+            @for (report of recent(); track report.id) { <a class="recent-case" routerLink="/soporte/reportes" [queryParams]="{reporte:report.id}"><div class="case-number">#{{ report.id }}</div><div class="case-copy"><strong>{{ report.subject }}</strong><span>{{ formatRelativeTime(report.created_at) }} · {{ report.assigned_to_user_id ? 'Con responsable' : 'Sin asignar' }}</span></div><span class="badge" [ngClass]="statusClass(report.status)">{{ statusLabel(report.status) }}</span></a> }
+            @if (!recent().length) { <p class="empty-state">No hay solicitudes registradas.</p> }
           </section>
-
-
-          <section class="card support-section">
-
-            <h2 class="section-title">
-              Estado de usuarios
-            </h2>
-
-
-            <div class="status-list">
-
-              <div class="status-row">
-
-                <div class="status-info">
-
-                  <span class="status-dot active"></span>
-
-                  <span>
-                    Usuarios activos
-                  </span>
-
-                </div>
-
-                <strong>
-                  {{ dashboard()!.active_users_count }}
-                </strong>
-
-              </div>
-
-
-              <div class="status-row">
-
-                <div class="status-info">
-
-                  <span class="status-dot suspended"></span>
-
-                  <span>
-                    Usuarios suspendidos
-                  </span>
-
-                </div>
-
-                <strong>
-                  {{ dashboard()!.suspended_users_count }}
-                </strong>
-
-              </div>
-
-
-              <div class="status-row">
-
-                <div class="status-info">
-
-                  <span class="status-dot total"></span>
-
-                  <span>
-                    Total de usuarios
-                  </span>
-
-                </div>
-
-                <strong>
-                  {{ dashboard()!.users_count }}
-                </strong>
-
-              </div>
-
-            </div>
-
-          </section>
-
+          <section class="card guide"><h2>Tu espacio de atención</h2><p class="queue-count"><strong>{{ data.unassigned_reports_count }}</strong> reportes sin asignar</p><a class="btn btn-primary" routerLink="/soporte/reportes">Abrir cola de reportes</a><a class="btn btn-outline" routerLink="/soporte/usuarios">Consultar una cuenta</a><div class="guide-copy"><h3>Antes de responder</h3><p>Lee el caso y revisa la cuenta o el viaje relacionado. Da pasos concretos y registra la solución.</p><h3>{{ auth.isAdmin() ? 'Casos escalados' : '¿Requiere otra intervención?' }}</h3><p>{{ auth.isAdmin() ? 'Revisa el motivo del escalamiento, toma el caso y comunica la decisión al usuario.' : 'Indica qué revisaste y envía el caso a administración. El usuario recibirá un aviso.' }}</p></div></section>
         </div>
-
-
-        @if (authService.isAdmin()) {
-
-          <div class="card admin-access">
-
-            <div>
-
-              <h2 class="section-title">
-                Administración
-              </h2>
-
-              <p class="section-description">
-                Tu cuenta también tiene permisos administrativos.
-              </p>
-
-            </div>
-
-            <a
-              routerLink="/admin"
-              class="btn btn-outline"
-            >
-              Ir a administración
-            </a>
-
-          </div>
-
-        }
-
-      }
-
+      } }
     </div>
   `,
-
   styles: [`
-    .admin-page {
-      max-width: 1200px;
-    }
-
-    .state-card {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .kpi-grid {
-      display: grid;
-      grid-template-columns:
-        repeat(3, minmax(0, 1fr));
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    .kpi-card {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .kpi-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 46px;
-      height: 46px;
-      flex-shrink: 0;
-      border-radius: 12px;
-    }
-
-    .users-icon {
-      color: #60a5fa;
-      background:
-        rgba(59, 130, 246, 0.15);
-    }
-
-    .active-icon {
-      color: #4ade80;
-      background:
-        rgba(34, 197, 94, 0.15);
-    }
-
-    .suspended-icon {
-      color: #f87171;
-      background:
-        rgba(239, 68, 68, 0.15);
-    }
-
-    .kpi-value {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: var(--text-primary);
-    }
-
-    .kpi-label {
-      margin-top: 3px;
-      font-size: 0.78rem;
-      color: var(--text-muted);
-    }
-
-    .support-grid {
-      display: grid;
-      grid-template-columns:
-        minmax(0, 1.3fr)
-        minmax(0, 0.7fr);
-      gap: 20px;
-    }
-
-    .support-section {
-      min-width: 0;
-    }
-
-    .section-title {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .section-description {
-      margin: 5px 0 0;
-      font-size: 0.78rem;
-      color: var(--text-muted);
-    }
-
-    .support-actions {
-      margin-top: 18px;
-    }
-
-    .support-action {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 16px;
-      border:
-        1px solid var(--border-soft);
-      border-radius: 10px;
-      background: var(--bg-panel-2);
-      color: var(--text-primary);
-      text-decoration: none;
-      transition:
-        border-color var(--transition-fast),
-        transform var(--transition-fast);
-    }
-
-    .support-action:hover {
-      border-color: var(--accent-blue);
-      transform: translateY(-1px);
-    }
-
-    .action-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 42px;
-      height: 42px;
-      flex-shrink: 0;
-      border-radius: 10px;
-      background:
-        rgba(59, 130, 246, 0.15);
-      color: #60a5fa;
-    }
-
-    .action-content {
-      display: flex;
-      flex: 1;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    .action-content span {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    .action-arrow {
-      color: var(--text-muted);
-    }
-
-    .status-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-top: 18px;
-    }
-
-    .status-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px;
-      border-radius: 9px;
-      background: var(--bg-panel-2);
-    }
-
-    .status-info {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-    }
-
-    .status-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-    }
-
-    .status-dot.active {
-      background: #22c55e;
-    }
-
-    .status-dot.suspended {
-      background: #ef4444;
-    }
-
-    .status-dot.total {
-      background: #3b82f6;
-    }
-
-    .admin-access {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-top: 20px;
-    }
-
-    .error-text {
-      color: var(--accent-red);
-    }
-
-    @media (max-width: 800px) {
-      .kpi-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .support-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 600px) {
-      .state-card,
-      .admin-access {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-    }
-  `],
+    .support-page { max-width:1300px; margin:auto; }
+    .eyebrow { margin:0 0 8px; color:var(--text-muted); font-size:.72rem; letter-spacing:.07em; text-transform:uppercase; }
+    .kpi-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:22px; }
+    .kpi { display:flex; flex-direction:column; gap:12px; border-top:3px solid var(--accent-blue); }
+    .kpi.amber { border-top-color:var(--accent-orange); } .kpi.purple { border-top-color:var(--accent-purple); } .kpi.green { border-top-color:var(--accent-green); }
+    .kpi > span { font-size:.8rem; color:var(--text-secondary); } .kpi strong { font-size:2rem; font-weight:650; line-height:1; } .kpi small { display:flex; justify-content:space-between; color:var(--text-muted); font-size:.73rem; }
+    .workspace-grid { display:grid; grid-template-columns:minmax(0,1.8fr) minmax(270px,1fr); gap:20px; align-items:start; }
+    .section-head { display:flex; justify-content:space-between; gap:12px; padding-bottom:15px; border-bottom:1px solid var(--border-soft); }
+    h2 { font-size:.95rem; } .section-head a { font-size:.78rem; color:var(--accent-blue); }
+    .recent-case { display:flex; align-items:center; gap:12px; padding:18px 0; border-bottom:1px solid var(--border-soft); } .recent-case:last-child { border:0; }
+    .recent-case:hover strong { color:var(--accent-blue); } .case-number { min-width:42px; color:var(--text-muted); font-size:.75rem; }
+    .case-copy { flex:1; min-width:0; } .case-copy strong { display:block; font-size:.85rem; overflow-wrap:anywhere; } .case-copy > span { display:block; color:var(--text-muted); font-size:.74rem; margin-top:6px; }
+    .guide { display:flex; flex-direction:column; gap:12px; } .queue-count { color:var(--text-secondary); font-size:.82rem; } .queue-count strong { font-size:1.25rem; color:var(--text-primary); }
+    .guide-copy { margin-top:8px; padding-top:16px; border-top:1px solid var(--border-soft); } h3 { font-size:.82rem; } .guide-copy p { color:var(--text-secondary); font-size:.8rem; line-height:1.6; }
+    @media(max-width:1100px) { .kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .workspace-grid { grid-template-columns:1fr; } }
+    @media(max-width:520px) { .kpi-grid { gap:10px; } .kpi { padding:15px; } .recent-case { flex-wrap:wrap; } .case-copy { flex-basis:65%; } }
+  `]
 })
-export class SupportDashboardComponent
-  implements OnInit
-{
-  protected readonly authService =
-    inject(AuthService);
-
-  private readonly adminApi =
-    inject(AdminApiService);
-
-
-  readonly dashboard =
-    signal<SupportDashboardRead | null>(
-      null
-    );
-
-  readonly loading =
-    signal(true);
-
-  readonly error =
-    signal<string | null>(null);
-
-
-  ngOnInit(): void {
-    this.loadDashboard();
-  }
-
-
+export class SupportDashboardComponent implements OnInit {
+  private readonly api = inject(SupportApiService);
+  readonly auth = inject(AuthService);
+  readonly dashboard = signal<SupportDashboardRead | null>(null);
+  readonly recent = signal<SupportReportRead[]>([]);
+  readonly loading = signal(true);
+  readonly error = signal('');
+  readonly statusLabel = supportStatusLabel;
+  readonly statusClass = supportStatusClass;
+  readonly formatRelativeTime = formatRelativeTime;
+  ngOnInit(): void { this.loadDashboard(); }
   loadDashboard(): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.adminApi
-      .supportDashboard()
-      .subscribe({
-
-        next: data => {
-          this.dashboard.set(
-            data
-          );
-
-          this.loading.set(false);
-        },
-
-        error: () => {
-          this.dashboard.set(
-            null
-          );
-
-          this.error.set(
-            'No se pudo cargar el panel de soporte.'
-          );
-
-          this.loading.set(false);
-        },
-
-      });
+    this.loading.set(true); this.error.set('');
+    forkJoin({ dashboard: this.api.dashboard(), recent: this.api.reports({ page_size: 6 }) }).subscribe({
+      next: result => { this.dashboard.set(result.dashboard); this.recent.set(result.recent.items); this.loading.set(false); },
+      error: () => { this.loading.set(false); this.error.set('No pudimos cargar el panel. Intenta de nuevo.'); }
+    });
   }
 }

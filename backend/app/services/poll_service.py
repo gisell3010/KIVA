@@ -163,6 +163,7 @@ def create_poll(db, *, actor_id, trip_id, data):
 
     notify_trip_members(
         db,
+        action_path=f"/votaciones?trip={trip_id}",
         trip_id=trip_id,
         title="Nueva votación",
         message=f'Hay una nueva votación en {trip.name}: "{poll.question}".',
@@ -199,6 +200,7 @@ def close_poll(db, *, actor_id, trip_id, poll_id):
 
     notify_trip_members(
         db,
+        action_path=f"/votaciones?trip={trip_id}",
         trip_id=trip_id,
         title="Votación finalizada",
         message=f'Ya puedes consultar los resultados de "{poll.question}".',

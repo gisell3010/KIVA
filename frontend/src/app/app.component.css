@@ -47,24 +47,12 @@
   min-height: 72px;
 }
 
-.brand-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-}
 
-.brand-text {
-  overflow: hidden;
-}
 
-.brand-name { font-weight: 700; font-size: 1.1rem; white-space: nowrap; }
-.brand-sub { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
+
+
+
+
 
 .mobile-menu-toggle {
   display: none;
@@ -262,6 +250,8 @@
 }
 
 @media (max-width: 768px) {
+  .sidebar { transform:translateX(-100%); visibility:hidden; }
+  .sidebar.open { transform:translateX(0); visibility:visible; }
   .main-area { margin-left: 0; }
   .shell.sidebar-collapsed .main-area { margin-left: 0; }
 }
@@ -343,7 +333,17 @@
 }
 
 @media (max-width: 480px) {
-  .brand-name { font-size: 1rem; }
-  .brand-sub { font-size: 0.65rem; }
+  
+  
   .content { padding: 16px 12px 32px; }
 }
+/* Navegación compacta y consistente con las tablas de trabajo. */
+.nav { min-height:0; }
+.brand,.sidebar-footer { flex-shrink:0; }
+.nav-item { padding:10px 12px; border-radius:6px; font-size:.84rem; min-height:42px; }
+.nav-item.active,.nav-item.support-nav-item.active,.nav-item.admin-nav-item.active,.nav-item.super-admin-nav-item.active { background:var(--bg-panel-2); color:var(--text-primary); box-shadow:inset 3px 0 var(--accent-blue); }
+.nav-item.support-nav-item { color:var(--text-secondary); }
+.topbar { background:var(--bg-panel); border-bottom:1px solid var(--border-soft); }
+.workspace-label { flex:1; font-weight:600; font-size:.85rem; }
+.workspace-label span { color:var(--text-muted); font-weight:400; }
+@media(max-width:550px) { .workspace-label span { display:none; } }

@@ -1,6 +1,8 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { allPages } from '../../core/http/all-pages';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
 import { ApiError } from '../../core/http/error.interceptor';
@@ -25,6 +27,8 @@ import { isTripManager } from '../../shared/utils/permissions.utils';
   styleUrl: './destinos.component.css',
 })
 export class DestinosComponent implements OnInit {
+  private readonly notificationDestroyRef = inject(DestroyRef);
+  private readonly notificationRoute = inject(ActivatedRoute);
   private readonly destinationsApi = inject(DestinationsApiService);
   private readonly tripsApi = inject(TripsApiService);
   private readonly groupsApi = inject(GroupsApiService);
@@ -50,6 +54,12 @@ export class DestinosComponent implements OnInit {
   readonly canManage = computed(() => isTripManager(this.selectedTrip()));
 
   ngOnInit(): void {
+    this.notificationRoute.queryParamMap.pipe(takeUntilDestroyed(this.notificationDestroyRef)).subscribe(params => {
+      const id = Number(params.get('trip'));
+      if (id && id !== this.filterTrip() && this.trips().some(trip => trip.id === id)) {
+        this.filterTrip.set(id); this.closeForm(); this.loadDestinations(id);
+      }
+    });
     this.loadGroups();
     this.loadTrips();
   }
@@ -66,8 +76,8 @@ export class DestinosComponent implements OnInit {
       next: (p) => {
         this.trips.set(p.items);
         if (p.items.length && this.filterTrip() === null) {
-          this.filterTrip.set(p.items[0].id);
-          this.loadDestinations(p.items[0].id);
+          this.filterTrip.set((p.items.find(trip => trip.id === Number(this.notificationRoute.snapshot.queryParamMap.get('trip'))) ?? p.items[0]).id);
+          this.loadDestinations((p.items.find(trip => trip.id === Number(this.notificationRoute.snapshot.queryParamMap.get('trip'))) ?? p.items[0]).id);
         }
       },
       error: () => this.fail('No se pudieron cargar los viajes.'),

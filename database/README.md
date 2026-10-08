@@ -3,7 +3,7 @@
 KIVA significa Kinship, Inspiration, Voyages & Adventures:
 vínculos, inspiración, viajes y aventuras.
 
-La base de datos utiliza PostgreSQL 16 y contiene 19 tablas distribuidas en los esquemas `auth`, `app` y `audit`, 20 índices adicionales y dos catálogos iniciales.
+La base de datos utiliza PostgreSQL 16 y contiene 21 tablas de dominio distribuidas en los esquemas `auth`, `app` y `audit`, 25 índices adicionales y dos catálogos iniciales. La tabla técnica `auth.alembic_version` se contabiliza por separado.
 
 ## Archivos
 
@@ -11,8 +11,9 @@ La base de datos utiliza PostgreSQL 16 y contiene 19 tablas distribuidas en los 
 |---|---|
 | `schema/kivadb.dbml` | Modelo de tablas y relaciones en formato DBML. |
 | `scripts/00_create_schemas.sql` | Crea los esquemas `auth`, `app` y `audit`. |
-| `scripts/01_create_tables.sql` | Crea las 19 tablas con sus restricciones. |
-| `scripts/02_indexes.sql` | Crea 20 índices adicionales. |
+| `scripts/01_create_tables.sql` | Crea las 21 tablas con sus restricciones. |
+| `scripts/02_indexes.sql` | Crea 25 índices adicionales. |
+| `docker-init.sh` | Ejecuta la instalación al inicializar un volumen PostgreSQL vacío en Docker. |
 | `seeds/01_expense_categories.sql` | Inserta 5 categorías iniciales de gastos. |
 | `seeds/02_reservation_types.sql` | Inserta 5 tipos iniciales de reservas. |
 | `install.sql` | Ejecuta la instalación completa mediante psql. |
@@ -44,6 +45,8 @@ La base de datos utiliza PostgreSQL 16 y contiene 19 tablas distribuidas en los 
 - `poll_options` — Opciones disponibles en cada votación.
 - `votes` — Votos emitidos por los usuarios.
 - `notifications` — Notificaciones personales de los usuarios.
+- `support_reports` — Reportes de incidencias creados por usuarios y atendidos por soporte.
+- `support_messages` — Conversación de los reportes y notas internas del equipo.
 
 **audit** — auditoría:
 
@@ -84,6 +87,10 @@ Se utiliza para eventos que representan un instante exacto:
 - `app.polls.closes_at`
 - `app.votes.voted_at`
 - `app.notifications.created_at`
+- `app.support_reports.created_at`
+- `app.support_reports.updated_at`
+- `app.support_reports.resolved_at`
+- `app.support_messages.created_at`
 - `audit.audit_logs.created_at`
 
 ### `DATE`
@@ -162,15 +169,22 @@ Instala la misma estructura en `kivadb_test`:
 psql -h localhost -p 5432 -U kiva_user -d kivadb_test -v ON_ERROR_STOP=1 -f database/install.sql
 ```
 
-La base de pruebas debe conservar únicamente la estructura y los catálogos iniciales antes de ejecutar pytest. No cargues en `kivadb_test` los datos de `seed_demo.py` salvo que una prueba específica los requiera y los gestione de forma aislada.
+La base de pruebas debe conservar únicamente la estructura y los catálogos iniciales antes de ejecutar pytest. Cada prueba administra sus propios datos de forma aislada.
 
 ## Migraciones con Alembic
 
 La configuración se encuentra en `backend/alembic/` y `backend/alembic.ini`. La tabla de control de versiones se ubica en `auth.alembic_version`.
 
-La estructura inicial del proyecto continúa definida por `database/install.sql`. En el estado actual todavía no existe una revisión baseline dentro de `backend/alembic/versions/`. Antes de utilizar Alembic para cambios incrementales debe establecerse y coordinarse esa línea base con la base ya instalada.
+La estructura inicial continúa definida por `database/install.sql`. La revisión `20261007_support` aplica la actualización de soporte a una base KIVA instalada; no crea todo el esquema desde cero. Desde `backend/`, con `.env` apuntando a la base de destino:
 
-Una vez definida la línea base, los cambios posteriores de estructura deben gestionarse mediante migraciones de Alembic en lugar de editar directamente una base ya desplegada.
+```powershell
+alembic upgrade head
+alembic current
+```
+
+Las bases existentes se actualizan mediante Alembic, previo respaldo. `install.sql` se reserva para bases vacías y ya incluye el esquema completo. Después de una instalación nueva, `alembic upgrade head` registra la revisión; las operaciones de esa revisión admiten la estructura ya creada.
+
+Los cambios posteriores de estructura deben gestionarse mediante nuevas migraciones de Alembic en lugar de editar directamente una base ya desplegada. Consultar [Migraciones](../backend/alembic/README).
 
 ## Validaciones y restricciones
 
@@ -218,7 +232,7 @@ SELECT COUNT(*) AS reservation_types
 FROM app.reservation_types;
 ```
 
-Se esperan 19 tablas, 5 categorías de gastos y 5 tipos de reservas.
+Se esperan 21 tablas de dominio, 5 categorías de gastos y 5 tipos de reservas. Si se ha ejecutado Alembic, la consulta también muestra `auth.alembic_version`.
 
 Para comprobar los tipos temporales:
 
@@ -251,8 +265,8 @@ Los eventos del sistema deben aparecer como `timestamp with time zone`, las fech
 
 ## Diagramas
 
-- `schema/kivadb.dbml` — Modelo DBML importable en dbdiagram.io.
-- `docs/database/KIVA.pdf` — Diagrama entidad-relación en PDF.
-- `docs/database/KIVA.png` — Diagrama entidad-relación en PNG.
+- [Modelo DBML](schema/kivadb.dbml) importable en dbdiagram.io.
+- [Diagrama entidad-relación en PDF](../docs/database/KIVA.pdf).
+- [Diagrama entidad-relación en PNG](../docs/database/KIVA.png).
 
 Cuando se modifique el DBML, los archivos PDF y PNG deben regenerarse para que la documentación gráfica permanezca sincronizada.

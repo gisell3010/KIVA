@@ -30,7 +30,8 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
     '/auth/register',
     '/auth/refresh',
     '/auth/logout',
-  ].includes(path);
+    '/support-reports/public',
+  ].includes(path) || path.startsWith('/support-reports/public/');
 
   if (cookieOperation) {
     return next(

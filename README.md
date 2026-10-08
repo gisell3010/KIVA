@@ -6,7 +6,7 @@ KIVA es una plataforma full-stack para organizar viajes en grupo. Permite gestio
 
 ## Stack tecnológico
 
-- **Frontend:** Angular 18 con componentes standalone, Signals y control flow.
+- **Frontend:** Angular 22.2.1 con componentes standalone, Signals y control flow.
 - **Backend:** FastAPI con Python 3.14 y SQLAlchemy 2.0.
 - **Base de datos:** PostgreSQL 16.
 - **Autenticación:** JWT con access token y refresh token persistido mediante hash.
@@ -31,7 +31,8 @@ KIVA es una plataforma full-stack para organizar viajes en grupo. Permite gestio
 - **Calendario:** vista unificada de fechas del viaje, actividades, gastos, reservas y cierres de votaciones.
 - **Notificaciones:** notificaciones persistidas dentro de la plataforma.
 - **Perfil:** información personal, fotografía y sesiones activas.
-- **Configuración:** tema visual y opciones de accesibilidad.
+- **Configuración:** correo, contraseña, cierre de sesiones, tema visual y opciones de accesibilidad.
+- **Reportes de soporte:** creación y seguimiento de incidencias con historial de conversación.
 
 ### Administración
 
@@ -40,13 +41,16 @@ KIVA es una plataforma full-stack para organizar viajes en grupo. Permite gestio
 - **Grupos:** consulta global de grupos en modo de supervisión.
 - **Viajes:** consulta global de viajes en modo de supervisión.
 - **Visión general:** distribución de usuarios y estados de viajes.
+- **Reportes escalados:** atención y reasignación de incidencias que requieren intervención administrativa.
 
 La administración de la plataforma no reemplaza los permisos contextuales de los propietarios y organizadores de grupos o viajes.
 
 ### Soporte
 
-- **Panel de soporte:** resumen del estado de las cuentas.
+- **Panel de soporte:** resumen de reportes por estado y cola de atención.
 - **Consulta de usuarios:** búsqueda y visualización de información de cuenta en modo de solo lectura.
+- **Gestión de incidencias:** asignación, diagnóstico, conversación, notas internas, resolución y escalamiento con motivo.
+- **Ayuda pública:** creación y seguimiento de solicitudes sin sesión mediante número de reporte y clave privada.
 
 ### Superadministración
 
@@ -88,7 +92,7 @@ La base utiliza tres esquemas:
 - `app` — dominio principal de KIVA.
 - `audit` — auditoría.
 
-El modelo actual contiene 19 tablas, 20 índices adicionales y dos catálogos iniciales. La estructura inicial se instala mediante `database/install.sql`. Alembic está configurado para gestionar cambios incrementales una vez se establezca la línea base de migraciones.
+El modelo actual contiene 21 tablas de dominio, 25 índices adicionales y dos catálogos iniciales. La estructura inicial se instala mediante `database/install.sql`. Alembic registra y aplica los cambios de estructura sobre bases existentes; no sustituye la instalación inicial. La tabla técnica `auth.alembic_version` no se incluye en las 21 tablas de dominio.
 
 Los eventos del sistema utilizan `TIMESTAMPTZ`, las fechas funcionales del viaje utilizan `DATE` y la hora local de las actividades utiliza `TIME`.
 
@@ -121,6 +125,8 @@ Los scripts de `database/` se ejecutan automáticamente únicamente cuando el vo
 
 ## Desarrollo local sin Docker
 
+Requisitos: Python 3.14, PostgreSQL 16, Node.js 24.15 o posterior de la rama 24 y npm. Los comandos siguientes utilizan PowerShell y parten de una copia local del repositorio.
+
 ### Base de datos
 
 Crea un usuario dedicado y las bases de desarrollo y pruebas desde una sesión administrativa de PostgreSQL:
@@ -151,17 +157,20 @@ psql -h localhost -p 5432 -U kiva_user -d kivadb_test -v ON_ERROR_STOP=1 -f data
 cd backend
 py -3.14 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements-dev.txt
+python -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
 ```
 
 Completa `DB_PASSWORD` y `JWT_SECRET` en `backend/.env` y ejecuta:
 
 ```powershell
+alembic upgrade head
 python -m uvicorn app.main:app --reload
 ```
 
 ### Frontend
+
+En otra terminal, desde la raíz del proyecto:
 
 ```powershell
 cd frontend
@@ -218,11 +227,11 @@ npx playwright install
 npm run e2e
 ```
 
-El frontend y el backend deben estar disponibles durante las pruebas E2E según la configuración de Playwright.
+Playwright inicia el frontend o reutiliza el servidor local existente. El backend debe estar disponible y conectado a una base aislada. Las pruebas administrativas requieren `E2E_SUPERADMIN_EMAIL` y `E2E_SUPERADMIN_PASSWORD` de una cuenta de pruebas. Consulta [Frontend](frontend/README.md).
 
 ## Despliegue
 
-El despliegue público principal se realiza en Render: Angular como Static Site, FastAPI como Web Service Docker y PostgreSQL mediante Render Postgres. Para mantener el despliegue académico completamente gratuito, las imágenes se almacenan en Cloudinary Free; PostgreSQL conserva la referencia y FastAPI mantiene el control de subida, validación y acceso. Consulta `deploy/render/README.md`.
+La configuración de despliegue principal utiliza Render: Angular como Static Site, FastAPI como Web Service Docker y PostgreSQL mediante Render Postgres. Las imágenes se almacenan en Cloudinary; PostgreSQL conserva la referencia y FastAPI mantiene el control de subida, validación y acceso. La disponibilidad depende del plan contratado. Consulta [Despliegue en Render](deploy/render/README.md).
 
 La configuración Docker Compose + Nginx se conserva en `deploy/` únicamente como alternativa para un VPS o servidor propio.
 
@@ -241,7 +250,7 @@ KIVA/
 │   │   ├── services/         # Lógica de negocio
 │   │   └── storage/          # Almacenamiento de imágenes
 │   ├── alembic/              # Configuración de migraciones
-│   ├── scripts/              # Scripts de administración y datos demo
+│   ├── scripts/              # Scripts de administración
 │   └── tests/                # Pruebas pytest
 ├── database/                 # DBML, SQL, índices y catálogos
 ├── deploy/                   # Render + Cloudinary principal; Docker/Nginx alternativo
@@ -254,6 +263,19 @@ KIVA/
 El proyecto dispone de autenticación, sesiones, permisos globales y contextuales, persistencia PostgreSQL, servicios REST para los recursos principales, almacenamiento de imágenes, notificaciones internas, calendario, auditoría, paneles administrativos, configuración de Docker y pruebas automatizadas en el repositorio.
 
 La lógica administrativa de plataforma se mantiene separada de las decisiones de los propietarios y organizadores de cada grupo o viaje.
+
+## Documentación
+
+- [Backend e instalación de la API](backend/README.md).
+- [Frontend](frontend/README.md).
+- [Base de datos y migraciones](database/README.md).
+- [Arquitectura](docs/architecture/README.md).
+- [API](docs/api/README.md).
+- [Manuales de uso](docs/manuals/README.md).
+- [Diagramas de datos](docs/database/README.md).
+- [Despliegue](deploy/README.md).
+
+Las incidencias funcionales pueden registrarse desde los reportes de soporte de la aplicación o desde Ayuda para solicitudes sin sesión.
 
 ## Licencia
 

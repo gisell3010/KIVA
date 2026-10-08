@@ -20,7 +20,7 @@
         </div>
 
         <nav class="nav">
-          @for (link of links; track link.path) {
+          @for (link of (isStaffWorkspace() ? [links[0]] : links); track link.path) {
             <a
               class="nav-item"
               [routerLink]="link.path"
@@ -55,15 +55,12 @@
 
           @if (auth.isSupport()) {
             <div class="nav-divider"></div>
-
-            <a
-              class="nav-item support-nav-item"
-              routerLink="/soporte"
-              routerLinkActive="active"
-              (click)="closeMobileMenu()"
-            >
-              Soporte
-            </a>
+            @for (link of supportLinks; track link.path) {
+              <a class="nav-item support-nav-item" [routerLink]="link.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" [title]="link.label" (click)="closeMobileMenu()">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 4h16v14H7l-3 3z M8 9h8 M8 13h5" /></svg>
+                @if (!isSidebarCollapsed) { <span class="nav-label">{{ link.label }}</span> }
+              </a>
+            }
           }
 
           @if (auth.isAdmin()) {
@@ -191,9 +188,7 @@
             </svg>
           </button>
 
-          <app-search
-            class="search-wrapper"
-          />
+          @if (isStaffWorkspace()) { <span class="workspace-label">KIVA <span> / Atención y administración</span></span> } @else { <app-search class="search-wrapper" /> }
 
           <div class="topbar-actions">
             <app-notification-dropdown />

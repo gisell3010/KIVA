@@ -1,71 +1,30 @@
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
 from alembic import context
-import sys
-import os
-
-# Add the backend directory to the path
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
 from app.db.base import Base
-from app.models import user, group, trip, destination, destination_photo, activity, expense, reservation, poll, notification, auth_session, audit_log
+from app.db.session import engine, database_url
+import app.models  # Registra todas las tablas.
 
 config = context.config
-
-if config.config_file_name is not None:
+if config.config_file_name:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+
+def include_object(obj, name, type_, reflected, compare_to):
+    return not (type_ == "table" and name == "alembic_version")
 
 
-def get_url():
-    from app.core.config import get_settings
-    settings = get_settings()
-    return settings.database_url_sync
-
-
-def run_migrations_offline() -> None:
-    url = get_url()
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-        compare_type=True,
-        compare_server_default=True,
-        include_schemas=True,
-        version_table_schema="auth",
-    )
-
-    with context.begin_transaction():
-        context.run_migrations()
-
-
-def run_migrations_online() -> None:
-    configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = get_url()
-
-    connectable = engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-
-    with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            compare_type=True,
-            compare_server_default=True,
-            include_schemas=True,
-            version_table_schema="auth",
-        )
-
-        with context.begin_transaction():
-            context.run_migrations()
+def configure(**kwargs):
+    context.configure(target_metadata=Base.metadata, include_schemas=True,
+        compare_type=True, version_table_schema="auth", include_object=include_object, **kwargs)
 
 
 if context.is_offline_mode():
-    run_migrations_offline()
+    configure(url=database_url.render_as_string(hide_password=False), literal_binds=True,
+        dialect_opts={"paramstyle": "named"})
+    with context.begin_transaction():
+        context.run_migrations()
 else:
-    run_migrations_online()
+    with engine.connect() as connection:
+        configure(connection=connection)
+        with context.begin_transaction():
+            context.run_migrations()

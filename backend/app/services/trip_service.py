@@ -338,6 +338,7 @@ def add_member(db, *, actor_id, trip_id, data):
 
     create_notification(
         db,
+        action_path=f"/participantes?trip={trip_id}",
         user_id=data.user_id,
         title="Nuevo viaje",
         message=f"Te agregaron al viaje {trip.name}.",
@@ -378,6 +379,7 @@ def update_member(
         role_label = "Organizador" if data.role == "ORGANIZER" else "Participante"
         create_notification(
             db,
+            action_path=f"/participantes?trip={trip_id}",
             user_id=user_id,
             title="Tu función en el viaje cambió",
             message=f"Ahora participas como {role_label} en {trip.name}.",
@@ -455,6 +457,7 @@ def remove_member(db, *, actor_id, trip_id, user_id):
     if actor_id != user_id:
         create_notification(
             db,
+            action_path=f"/participantes?trip={trip_id}",
             user_id=user_id,
             title="Cambio en un viaje",
             message=f"Ya no formas parte del viaje {trip.name}.",
@@ -487,6 +490,7 @@ def transfer_ownership(db, *, actor_id, trip_id, data):
 
         create_notification(
             db,
+            action_path=f"/participantes?trip={trip_id}",
             user_id=data.new_owner_user_id,
             title="Ahora eres responsable del viaje",
             message=f"Te transfirieron la responsabilidad de {trip.name}.",

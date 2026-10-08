@@ -126,6 +126,7 @@ def update_activity(
         label = "aprobada" if item.status == "APPROVED" else "cancelada"
         notify_trip_members(
             db,
+            action_path=f"/itinerario?trip={trip_id}",
             trip_id=trip_id,
             title="Actividad actualizada",
             message=f'La actividad "{item.title}" fue {label} en {trip.name}.',
